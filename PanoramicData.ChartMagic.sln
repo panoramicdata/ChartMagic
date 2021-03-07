@@ -1,0 +1,38 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31025.218
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PanoramicData.ChartMagic", "PanoramicData.ChartMagic\PanoramicData.ChartMagic.csproj", "{A2022B58-A958-4B8E-A79A-4E827BB43EE5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PanoramicData.ChartMagic.Test", "PanoramicData.ChartMagic.Test\PanoramicData.ChartMagic.Test.csproj", "{076ADA1B-F023-46C6-BFDB-8921D3D8729C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3039EFBC-A35B-4E1D-B267-F0DF9DF57170}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A2022B58-A958-4B8E-A79A-4E827BB43EE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2022B58-A958-4B8E-A79A-4E827BB43EE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2022B58-A958-4B8E-A79A-4E827BB43EE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2022B58-A958-4B8E-A79A-4E827BB43EE5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{076ADA1B-F023-46C6-BFDB-8921D3D8729C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{076ADA1B-F023-46C6-BFDB-8921D3D8729C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{076ADA1B-F023-46C6-BFDB-8921D3D8729C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{076ADA1B-F023-46C6-BFDB-8921D3D8729C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {61C960A1-1164-4B94-9917-A603EF723DB4}
+	EndGlobalSection
+EndGlobal
