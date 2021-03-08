@@ -16,5 +16,7 @@ namespace PanoramicData.ChartMagic.Test.Models
 		public Color BorderColor { get; set; }
 		public string? LabelText { get; set; }
 		public string? LegendText { get; set; }
+		public float FontSize { get; set; } = 20;
+		public ChartDashStyle BorderStyle { get; set; } = ChartDashStyle.Solid;
 	}
 }

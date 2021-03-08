@@ -198,6 +198,35 @@ namespace PanoramicData.ChartMagic.Test.Models
 			chart.ChartArea.YAxis.Width = InnerPlotXPositionPercent * chart.ChartArea.Width / 100;
 			chart.ChartArea.YAxis.Height = InnerPlotHeightPercent * chart.ChartArea.Height / 100;
 
+			// Series
+			var seriesIndex = 0;
+			foreach (var seriesSpec in SeriesList)
+			{
+				var series = new Series(chart.ChartArea, $"Series {++seriesIndex}")
+				{
+					BorderWidth = seriesSpec.BorderWidth,
+					ChartType = seriesSpec.ChartType,
+					Color = seriesSpec.Color,
+					FillColor = seriesSpec.Color,
+					FontSize = seriesSpec.FontSize,
+					Height = chart.ChartArea.InnerPlot.Height,
+					IsXValueIndexed = seriesSpec.IsXValueIndexed,
+					LabelText = seriesSpec.LabelText,
+					LegendText = seriesSpec.LegendText,
+					Points = seriesSpec.Points,
+					StrokeColor = seriesSpec.BorderColor,
+					StrokeStyle = seriesSpec.BorderStyle,
+					StrokeWidth = seriesSpec.BorderWidth,
+					Width = chart.ChartArea.InnerPlot.Width,
+					XPosition = chart.ChartArea.InnerPlot.XPosition,
+					XRadius = chart.ChartArea.InnerPlot.XRadius,
+					XValueType = seriesSpec.XValueType,
+					YPosition = chart.ChartArea.InnerPlot.YPosition,
+					YRadius = chart.ChartArea.InnerPlot.YRadius,
+				};
+				chart.Series.Add(series);
+			}
+
 			return chart;
 		}
 	}

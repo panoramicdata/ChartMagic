@@ -33,11 +33,6 @@
 		Emf,
 
 		/// <summary>
-		/// An exif image format.
-		/// </summary>
-		Exif,
-
-		/// <summary>
 		/// An SVG image format
 		/// </summary>
 		Svg,

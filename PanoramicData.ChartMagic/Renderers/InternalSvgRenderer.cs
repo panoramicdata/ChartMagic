@@ -1,6 +1,5 @@
 ﻿using PanoramicData.ChartMagic.Extensions;
 using PanoramicData.ChartMagic.Models;
-using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -68,13 +67,12 @@ namespace PanoramicData.ChartMagic.Renderers
 			}
 
 			// Legends
-			if (chart.Legends.Count != 0)
+			if (chart.Legends.Count > 0)
 			{
-				throw new NotSupportedException("More than one legend is not supported.");
+				var legend = chart.Legends[0];
+				var legendNode = GetGroup(legend, totalHeight);
+				chartBackgroundAreaNode.AppendChild(legendNode);
 			}
-			var legend = chart.Legends[0];
-			var legendNode = GetGroup(legend, totalHeight);
-			chartBackgroundAreaNode.AppendChild(legendNode);
 
 			// Labels
 

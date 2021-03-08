@@ -4,12 +4,11 @@ using Xunit;
 
 namespace PanoramicData.ChartMagic.Test
 {
-	public class FormaTests : RenderTest
+	public class FormatTests : RenderTest
 	{
 		[Theory]
 		[InlineData(ChartImageFormat.Bmp)]
-		//[InlineData(ChartImageFormat.Emf)]
-		//[InlineData(ChartImageFormat.Exif)]
+		[InlineData(ChartImageFormat.Emf)]
 		[InlineData(ChartImageFormat.Gif)]
 		[InlineData(ChartImageFormat.Jpeg)]
 		[InlineData(ChartImageFormat.Png)]

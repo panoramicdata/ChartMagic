@@ -54,8 +54,23 @@ namespace PanoramicData.ChartMagic.Models
 				}
 				var svgDocument = SvgDocument.Open(svgTempFileInfo.FullName);
 				svgDocument.ShapeRendering = SvgShapeRendering.Auto;
-				Bitmap bmp = svgDocument.Draw((int)ChartBackgroundArea.Width, (int)ChartBackgroundArea.Height);
 
+				// Is the output EMF (vector)?
+				if (chartImageFormat == ChartImageFormat.Emf)
+				{
+					// Yes.
+					using var bufferGraphics = Graphics.FromHwndInternal(IntPtr.Zero);
+					using var metafile = new Metafile(stream, bufferGraphics.GetHdc());
+					using var graphics = Graphics.FromImage(metafile);
+					svgDocument.Draw(graphics);
+					return;
+				}
+				// No. Output as a bitmap
+
+				Bitmap bmp = svgDocument.Draw(
+					(int)ChartBackgroundArea.Width,
+					(int)ChartBackgroundArea.Height
+					);
 				switch (chartImageFormat)
 				{
 					case ChartImageFormat.Png:
