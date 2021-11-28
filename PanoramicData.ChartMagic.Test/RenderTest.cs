@@ -9,7 +9,7 @@ public class RenderTest
 		chart.SaveImage(fileStream, Enum.Parse<ChartImageFormat>(fileInfo.FullName.Split('.').Last(), true), true);
 	}
 
-	protected FileInfo GetTempFileName(ChartImageFormat chartImageFormat)
+	protected static FileInfo GetTempFileName(ChartImageFormat chartImageFormat)
 	{
 		var tempFileName = Path.GetTempFileName();
 		var tempFile = new FileInfo(tempFileName);
