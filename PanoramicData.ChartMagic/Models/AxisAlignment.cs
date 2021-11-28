@@ -1,10 +1,9 @@
-﻿namespace PanoramicData.ChartMagic.Models
+﻿namespace PanoramicData.ChartMagic.Models;
+
+public enum AxisAlignment
 {
-	public enum AxisAlignment
-	{
-		Top,
-		Right,
-		Left,
-		Bottom,
-	}
+	Top,
+	Right,
+	Left,
+	Bottom,
 }

@@ -1,11 +1,10 @@
 ﻿using PanoramicData.ChartMagic.Interfaces;
 
-namespace PanoramicData.ChartMagic.Models
+namespace PanoramicData.ChartMagic.Models;
+
+public class InnerChartArea : ChartNamedElement
 {
-	public class InnerChartArea : ChartNamedElement
+	public InnerChartArea(IChartElement parent, string name) : base(parent, name)
 	{
-		public InnerChartArea(IChartElement parent, string name) : base(parent, name)
-		{
-		}
 	}
 }

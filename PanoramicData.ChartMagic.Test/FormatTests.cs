@@ -2,30 +2,29 @@ using FluentAssertions;
 using PanoramicData.ChartMagic.Models;
 using Xunit;
 
-namespace PanoramicData.ChartMagic.Test
+namespace PanoramicData.ChartMagic.Test;
+
+public class FormatTests : RenderTest
 {
-	public class FormatTests : RenderTest
+	[Theory]
+	[InlineData(ChartImageFormat.Bmp)]
+	[InlineData(ChartImageFormat.Emf)]
+	[InlineData(ChartImageFormat.Gif)]
+	[InlineData(ChartImageFormat.Jpeg)]
+	[InlineData(ChartImageFormat.Png)]
+	[InlineData(ChartImageFormat.Svg)]
+	[InlineData(ChartImageFormat.Tiff)]
+	public void EachFormat_Succeeds(ChartImageFormat chartImageFormat)
 	{
-		[Theory]
-		[InlineData(ChartImageFormat.Bmp)]
-		[InlineData(ChartImageFormat.Emf)]
-		[InlineData(ChartImageFormat.Gif)]
-		[InlineData(ChartImageFormat.Jpeg)]
-		[InlineData(ChartImageFormat.Png)]
-		[InlineData(ChartImageFormat.Svg)]
-		[InlineData(ChartImageFormat.Tiff)]
-		public void EachFormat_Succeeds(ChartImageFormat chartImageFormat)
+		var fileInfo = GetTempFileName(chartImageFormat);
+		try
 		{
-			var fileInfo = GetTempFileName(chartImageFormat);
-			try
-			{
-				SaveFile(BasicChartSpecification, fileInfo);
-				fileInfo.Exists.Should().BeTrue();
-			}
-			finally
-			{
-				fileInfo.Delete();
-			}
+			SaveFile(BasicChartSpecification, fileInfo);
+			fileInfo.Exists.Should().BeTrue();
+		}
+		finally
+		{
+			fileInfo.Delete();
 		}
 	}
 }

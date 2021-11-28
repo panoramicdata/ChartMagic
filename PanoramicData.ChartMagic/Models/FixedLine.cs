@@ -1,6 +1,5 @@
-﻿namespace PanoramicData.ChartMagic.Models
+﻿namespace PanoramicData.ChartMagic.Models;
+
+public class FixedLine
 {
-	public class FixedLine
-	{
-	}
 }

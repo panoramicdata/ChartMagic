@@ -1,6 +1,5 @@
-﻿namespace PanoramicData.ChartMagic.Interfaces
+﻿namespace PanoramicData.ChartMagic.Interfaces;
+
+internal interface INameController
 {
-	internal interface INameController
-	{
-	}
 }

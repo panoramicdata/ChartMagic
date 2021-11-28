@@ -1,11 +1,10 @@
 ﻿using PanoramicData.ChartMagic.Interfaces;
 
-namespace PanoramicData.ChartMagic.Models
+namespace PanoramicData.ChartMagic.Models;
+
+public class Title : ChartNamedElement
 {
-	public class Title : ChartNamedElement
+	public Title(IChartElement parent, string name) : base(parent, name)
 	{
-		public Title(IChartElement parent, string name) : base(parent, name)
-		{
-		}
 	}
 }

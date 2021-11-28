@@ -1,6 +1,6 @@
-﻿namespace PanoramicData.ChartMagic.Interfaces
+﻿namespace PanoramicData.ChartMagic.Interfaces;
+
+public interface IChartElement
 {
-	public interface IChartElement
-	{
-	}
+	public IChartElement Parent { get; }
 }

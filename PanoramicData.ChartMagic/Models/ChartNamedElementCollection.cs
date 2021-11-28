@@ -1,31 +1,30 @@
 ﻿using PanoramicData.ChartMagic.Interfaces;
 using System.Collections.Generic;
 
-namespace PanoramicData.ChartMagic.Models
+namespace PanoramicData.ChartMagic.Models;
+
+public class ChartNamedElementCollection<T> : ChartElementCollection<T>, INameController where T : ChartNamedElement
 {
-	public class ChartNamedElementCollection<T> : ChartElementCollection<T>, INameController where T : ChartNamedElement
+	internal ChartNamedElementCollection(IChartElement parent, IList<T> list) : base(parent, list)
 	{
-		internal ChartNamedElementCollection(IChartElement parent, IList<T>? list = null) : base(parent, list)
-		{
-		}
+	}
 
-		public bool IsUniqueName(string name) => FindByName(name) is null;
+	public bool IsUniqueName(string name) => FindByName(name) is null;
 
-		public virtual T? FindByName(string name)
+	public virtual T? FindByName(string name)
+	{
+		using (var enumerator = GetEnumerator())
 		{
-			using (IEnumerator<T> enumerator = GetEnumerator())
+			while (enumerator.MoveNext())
 			{
-				while (enumerator.MoveNext())
+				var current = enumerator.Current;
+				if (current.Name == name)
 				{
-					T current = enumerator.Current;
-					if (current.Name == name)
-					{
-						return current;
-					}
+					return current;
 				}
 			}
-
-			return null;
 		}
+
+		return null;
 	}
 }

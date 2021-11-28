@@ -1,8 +1,7 @@
-﻿namespace PanoramicData.ChartMagic.Models
+﻿namespace PanoramicData.ChartMagic.Models;
+
+public class ChartPoint
 {
-	public class ChartPoint
-	{
-		public object? XValue { get; set; }
-		public double? YValue { get; set; }
-	}
+	public object? XValue { get; set; }
+	public double? YValue { get; set; }
 }

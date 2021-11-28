@@ -6,40 +6,40 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 
-namespace PanoramicData.ChartMagic.Test
+namespace PanoramicData.ChartMagic.Test;
+
+public class RenderTest
 {
-	public class RenderTest
+	protected static void SaveFile(ChartSpecification chartSpecification, FileInfo fileInfo)
 	{
-		protected static void SaveFile(ChartSpecification chartSpecification, FileInfo fileInfo)
-		{
-			var chart = chartSpecification.ToChart();
-			using var fileStream = new FileStream(fileInfo.FullName, FileMode.Create, FileAccess.Write);
-			chart.SaveImage(fileStream, Enum.Parse<ChartImageFormat>(fileInfo.FullName.Split('.').Last(), true), true);
-		}
+		var chart = chartSpecification.ToChart();
+		using var fileStream = new FileStream(fileInfo.FullName, FileMode.Create, FileAccess.Write);
+		chart.SaveImage(fileStream, Enum.Parse<ChartImageFormat>(fileInfo.FullName.Split('.').Last(), true), true);
+	}
 
-		protected FileInfo GetTempFileName(ChartImageFormat chartImageFormat)
-		{
-			var tempFileName = Path.GetTempFileName();
-			var tempFile = new FileInfo(tempFileName);
-			var newTempFileName = tempFileName + "." + chartImageFormat.ToString().ToLowerInvariant();
-			tempFile.MoveTo(newTempFileName);
-			return new(newTempFileName);
-		}
+	protected FileInfo GetTempFileName(ChartImageFormat chartImageFormat)
+	{
+		var tempFileName = Path.GetTempFileName();
+		var tempFile = new FileInfo(tempFileName);
+		var newTempFileName = tempFileName + "." + chartImageFormat.ToString().ToLowerInvariant();
+		tempFile.MoveTo(newTempFileName);
+		return new(newTempFileName);
+	}
 
-		protected ChartSpecification BasicChartSpecification = new()
-		{
-			ChartAreaBackgroundColor = Color.Green,
+	protected ChartSpecification BasicChartSpecification = new()
+	{
+		ChartAreaBackgroundColor = Color.Green,
 
-			LegendBackgroundColor = Color.LightBlue,
-			LegendBorderColor = Color.Blue,
-			LegendBorderLineDashStyle = ChartDashStyle.DashDotDot,
+		LegendBackgroundColor = Color.LightBlue,
+		LegendBorderColor = Color.Blue,
+		LegendBorderLineDashStyle = ChartDashStyle.DashDotDot,
 
-			InnerPlotBorderColor = Color.Gray,
+		InnerPlotBorderColor = Color.Gray,
 
-			XAxisBackgroundColor = Color.Pink,
-			YAxisBackgroundColor = Color.Purple,
+		XAxisBackgroundColor = Color.Pink,
+		YAxisBackgroundColor = Color.Purple,
 
-			SeriesList = new List<SeriesSpecification>
+		SeriesList = new List<SeriesSpecification>
 					{
 						new()
 						{
@@ -80,6 +80,5 @@ namespace PanoramicData.ChartMagic.Test
 							}
 						}
 					}
-		};
-	}
+	};
 }
