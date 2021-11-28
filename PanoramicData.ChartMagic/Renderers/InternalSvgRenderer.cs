@@ -56,6 +56,8 @@ internal class InternalSvgRenderer
 
 		// Series
 		var innerPlotHeight = chart.ChartArea.InnerPlot.Height;
+		var stackedColumnDictionary = new Dictionary<string, double>();
+		var stackedAreaDictionary = new Dictionary<string, double>();
 		foreach (var series in chart.Series)
 		{
 			var pointIndex = 0;
@@ -67,19 +69,49 @@ internal class InternalSvgRenderer
 			var isFirstPoint = true;
 			foreach (var chartPoint in series.Points)
 			{
+				var xValue = chartPoint.XValue;
+				var xValueString = xValue.ToString() ?? string.Empty;
+				var yPointValue = chartPoint.YValue;
+				var yValue = series.ChartType switch
+				{
+					SeriesChartType.StackedColumn
+						=> stackedColumnDictionary.TryGetValue(xValueString ?? string.Empty, out var stackedColumnValue) ? stackedColumnValue : 0,
+					SeriesChartType.StackedArea
+						=> stackedAreaDictionary.TryGetValue(xValueString ?? string.Empty, out var stackedAreaValue) ? stackedAreaValue : 0,
+					SeriesChartType.StackedBar or
+					SeriesChartType.StackedBar100 or
+					SeriesChartType.StackedColumn100 or
+					SeriesChartType.StackedArea100
+						=> throw new NotSupportedException(),
+					_ => 0
+				} + yPointValue ?? 0;
+
 				// simple left to right, equidistanced for now
 				var xPosition = lastXPosition = chart.ChartArea.InnerPlot.Width * pointIndex++ / maxPointIndex;
-				var yPosition = innerPlotHeight * (1 - ((chartPoint.YValue - yAxisDisplayStart) / yAxisDisplayRange));
+				var yPosition = innerPlotHeight * (1 - ((yValue - yAxisDisplayStart) / yAxisDisplayRange));
+
 				// Letter - always M to start, afterwards L unless the previous value is null
 				pathStringBuilder.Append($"{(isFirstPoint ? "M" : " L")}{xPosition} {yPosition}");
 				areaStringBuilder.Append($" L{xPosition} {yPosition}");
 				isFirstPoint = false;
+
+				// Add to stacks if needed
+				switch (series.ChartType)
+				{
+					case SeriesChartType.StackedColumn:
+						stackedColumnDictionary[xValueString ?? string.Empty] = yValue;
+						break;
+					case SeriesChartType.StackedArea:
+						stackedColumnDictionary[xValueString ?? string.Empty] = yValue;
+						break;
+				}
 			}
 
 			// Fill Area
 			switch (series.ChartType)
 			{
 				case SeriesChartType.Area:
+				case SeriesChartType.StackedArea:
 					areaStringBuilder.Append($"L {lastXPosition} {innerPlotHeight} Z");
 					areaNode.SetAttribute("d", areaStringBuilder.ToString());
 					areaNode.SetAttribute("style", $"stroke:none; fill:{series.FillColor.ToHex()};");
@@ -92,6 +124,7 @@ internal class InternalSvgRenderer
 			{
 				case SeriesChartType.Area:
 				case SeriesChartType.Line:
+				case SeriesChartType.FastLine:
 					pathNode.SetAttribute("d", pathStringBuilder.ToString());
 					pathNode.SetAttribute("style", $"stroke:{series.StrokeColor.ToHex()}; fill:none; stroke-width:{series.StrokeWidth};");
 					innerPlotNode.AppendChild(pathNode);

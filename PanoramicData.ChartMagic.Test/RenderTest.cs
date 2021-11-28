@@ -73,44 +73,89 @@ public class RenderTest
 
 		SeriesList = new List<SeriesSpecification>
 		{
-			new()
-			{
-				FillColor = Color.Red,
-				StrokeColor = Color.DarkRed,
-				ChartType = SeriesChartType.Area,
-				LabelText = "Woo",
-				StrokeWidth = 10,
-				IsXValueIndexed = true,
-				LegendText = "Yay",
-				XValueType = ChartValueType.Auto,
-				Points = new()
-				{
-					new() { XValue = 1, YValue = 2 },
-					new() { XValue = 2, YValue = 4 },
-					new() { XValue = 3, YValue = 1 },
-					new() { XValue = 4, YValue = 7 },
-					new() { XValue = 5, YValue = 3 }
-				},
-			},
-			new()
-			{
-				FillColor = Color.Blue,
-				StrokeColor = Color.DarkBlue,
-				ChartType = SeriesChartType.Line,
-				LabelText = "Woo2",
-				StrokeWidth = 20,
-				IsXValueIndexed = true,
-				LegendText = "Yay2",
-				XValueType = ChartValueType.Auto,
-				Points = new()
-				{
-					new() { XValue = 1, YValue = 12 },
-					new() { XValue = 2, YValue = 14 },
-					new() { XValue = 3, YValue = 11 },
-					new() { XValue = 4, YValue = 17 },
-					new() { XValue = 5, YValue = 13 }
-				}
-			}
+			//RedSeriesSpecification,
+			//GreenSeriesSpecification,
+			BlueSeriesSpecification,
+			VioletSeriesSpecification
 		}
+	};
+
+	public static SeriesSpecification RedSeriesSpecification = new()
+	{
+		StrokeColor = Color.Red,
+		ChartType = SeriesChartType.Line,
+		LabelText = "Woo",
+		StrokeWidth = 20,
+		IsXValueIndexed = true,
+		LegendText = "Yay",
+		XValueType = ChartValueType.Auto,
+		Points = new()
+		{
+			new(1, 22),
+			new(2, 24),
+			new(3, 21),
+			new(4, 27),
+			new(5, 23)
+		}
+	};
+
+	public static SeriesSpecification GreenSeriesSpecification = new()
+	{
+		StrokeColor = Color.Green,
+		FillColor = Color.DarkGreen,
+		ChartType = SeriesChartType.Area,
+		LabelText = "Woo2",
+		StrokeWidth = 20,
+		IsXValueIndexed = true,
+		LegendText = "Yay2",
+		XValueType = ChartValueType.Auto,
+		Points = new()
+		{
+			new(1, 12),
+			new(2, 14),
+			new(3, 11),
+			new(4, 17),
+			new(5, 13)
+		}
+	};
+
+	public static SeriesSpecification BlueSeriesSpecification = new()
+	{
+		StrokeColor = Color.Blue,
+		FillColor = Color.DarkBlue,
+		ChartType = SeriesChartType.StackedArea,
+		LabelText = "Woo3A",
+		StrokeWidth = 10,
+		IsXValueIndexed = true,
+		LegendText = "Yay3A",
+		XValueType = ChartValueType.Auto,
+		Points = new()
+		{
+			new(1, 2),
+			new(2, 4),
+			new(3, 1),
+			new(4, 7),
+			new(5, 3)
+		},
+	};
+
+	public static SeriesSpecification VioletSeriesSpecification = new()
+	{
+		StrokeColor = Color.Violet,
+		FillColor = Color.DarkViolet,
+		ChartType = SeriesChartType.StackedArea,
+		LabelText = "Woo3B",
+		StrokeWidth = 10,
+		IsXValueIndexed = true,
+		LegendText = "Yay3B",
+		XValueType = ChartValueType.Auto,
+		Points = new()
+		{
+			new(1, 1),
+			new(2, 1),
+			new(3, 1),
+			new(4, 1),
+			new(5, 1)
+		},
 	};
 }
