@@ -35,10 +35,6 @@ internal class InternalSvgRenderer
 		var chartAreaNode = GetGroup(chart.ChartArea, totalHeight);
 		chartBackgroundAreaNode.AppendChild(chartAreaNode);
 
-		// Inner Plot background
-		var innerPlotNode = GetGroup(chart.ChartArea.InnerPlot, totalHeight);
-		chartAreaNode.AppendChild(innerPlotNode);
-
 		// X Axis
 		var xAxisNode = GetGroup(chart.ChartArea.XAxis, totalHeight);
 		chartAreaNode.AppendChild(xAxisNode);
@@ -47,14 +43,59 @@ internal class InternalSvgRenderer
 		var yAxisNode = GetGroup(chart.ChartArea.YAxis, totalHeight);
 		chartAreaNode.AppendChild(yAxisNode);
 
+		// Inner Plot background
+		var innerPlotNode = GetGroup(chart.ChartArea.InnerPlot, totalHeight);
+		chartAreaNode.AppendChild(innerPlotNode);
+
 		var maxPointIndex = axisHandlerResult.MaxXCount;
+
+		// TODO - snap to axis grid lines
+		var yAxisDisplayStart = chart.ChartArea.YAxis.Min ?? axisHandlerResult.MinYDouble;
+		var yAxisDisplayEnd = chart.ChartArea.YAxis.Max ?? axisHandlerResult.MaxYDouble;
+		var yAxisDisplayRange = yAxisDisplayEnd - yAxisDisplayStart;
+
+		// Series
+		var innerPlotHeight = chart.ChartArea.InnerPlot.Height;
 		foreach (var series in chart.Series)
 		{
 			var pointIndex = 0;
+			var pathNode = _xmlDocument.CreateElement(string.Empty, "path", string.Empty);
+			var areaNode = _xmlDocument.CreateElement(string.Empty, "path", string.Empty);
+			var pathStringBuilder = new StringBuilder();
+			var areaStringBuilder = new StringBuilder($"M0 {innerPlotHeight}");
+			var lastXPosition = (float?)null;
+			var isFirstPoint = true;
 			foreach (var chartPoint in series.Points)
 			{
 				// simple left to right, equidistanced for now
-				var xPositionPercent = 100 * pointIndex++ / maxPointIndex;
+				var xPosition = lastXPosition = chart.ChartArea.InnerPlot.Width * pointIndex++ / maxPointIndex;
+				var yPosition = innerPlotHeight * (1 - ((chartPoint.YValue - yAxisDisplayStart) / yAxisDisplayRange));
+				// Letter - always M to start, afterwards L unless the previous value is null
+				pathStringBuilder.Append($"{(isFirstPoint ? "M" : " L")}{xPosition} {yPosition}");
+				areaStringBuilder.Append($" L{xPosition} {yPosition}");
+				isFirstPoint = false;
+			}
+
+			// Fill Area
+			switch (series.ChartType)
+			{
+				case SeriesChartType.Area:
+					areaStringBuilder.Append($"L {lastXPosition} {innerPlotHeight} Z");
+					areaNode.SetAttribute("d", areaStringBuilder.ToString());
+					areaNode.SetAttribute("style", $"stroke:none; fill:{series.FillColor.ToHex()};");
+					innerPlotNode.AppendChild(areaNode);
+					break;
+			}
+
+			// Line
+			switch (series.ChartType)
+			{
+				case SeriesChartType.Area:
+				case SeriesChartType.Line:
+					pathNode.SetAttribute("d", pathStringBuilder.ToString());
+					pathNode.SetAttribute("style", $"stroke:{series.StrokeColor.ToHex()}; fill:none; stroke-width:{series.StrokeWidth};");
+					innerPlotNode.AppendChild(pathNode);
+					break;
 			}
 		}
 
@@ -66,9 +107,22 @@ internal class InternalSvgRenderer
 			chartBackgroundAreaNode.AppendChild(legendNode);
 		}
 
-		// Labels
-
 		// Annotations
+		foreach (var annotation in chart.Annotations)
+		{
+			var annotationNode = GetGroup(annotation, totalHeight);
+			var textNode = _xmlDocument.CreateElement(string.Empty, "text", string.Empty);
+			textNode.InnerText = annotation.Text;
+			textNode.SetAttribute("text-anchor", annotation.HorizontalAlignment switch
+			{
+				HorizontalAlignment.Left => "start",
+				HorizontalAlignment.Center => "middle",
+				HorizontalAlignment.Right => "end",
+				_ => throw new NotSupportedException($"Unsupported HorizontalAlignment '{annotation.HorizontalAlignment}'")
+			});
+			annotationNode.AppendChild(textNode);
+			chartBackgroundAreaNode.AppendChild(annotationNode);
+		}
 
 		var writer = new XmlTextWriter(stream, Encoding.Unicode)
 		{

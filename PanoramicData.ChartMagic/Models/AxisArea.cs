@@ -23,4 +23,7 @@ public class AxisArea : ChartNamedElement
 	public double? MinorGridInterval { get; set; }
 	public string? LabelFormat { get; set; }
 	public bool IsLogarithmic { get; set; }
+
+	public double? Min { get; set; }
+	public double? Max { get; set; }
 }

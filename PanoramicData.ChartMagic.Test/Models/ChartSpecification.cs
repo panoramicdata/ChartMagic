@@ -6,8 +6,8 @@ public class ChartSpecification
 
 	public object? DoughnutRadius { get; set; }
 
-	public int ChartWidth { get; set; } = 2560;
-	public int ChartHeight { get; set; } = 800;
+	public int ChartWidth { get; set; } = 1440;
+	public int ChartHeight { get; set; } = 1080;
 	public Color ChartBackgroundColor { get; set; } = Colors.Transparent;
 	public Color ChartBorderColor { get; set; } = Colors.Transparent;
 	public int ChartBorderWidth { get; set; } = 2;
@@ -61,7 +61,8 @@ public class ChartSpecification
 	public Color? LabelColor { get; set; }
 	public Color LabelBackgroundColor { get; set; } = Colors.Transparent;
 
-	public List<string>? Palette { get; set; }
+	public List<string> Palette { get; set; } = new();
+	public List<AnnotationSpec> AnnotationList { get; set; } = new();
 	public string? PieLabelStyle { get; set; }
 	public Color PieLineColor { get; set; } = Color.Black;
 	public int PieStartAngleDegrees { get; set; }
@@ -199,19 +200,17 @@ public class ChartSpecification
 		{
 			var series = new Series(chart.ChartArea, $"Series {++seriesIndex}")
 			{
-				BorderWidth = seriesSpec.BorderWidth,
 				ChartType = seriesSpec.ChartType,
-				Color = seriesSpec.Color,
-				FillColor = seriesSpec.Color,
+				FillColor = seriesSpec.FillColor,
 				FontSize = seriesSpec.FontSize,
 				Height = chart.ChartArea.InnerPlot.Height,
 				IsXValueIndexed = seriesSpec.IsXValueIndexed,
 				LabelText = seriesSpec.LabelText,
 				LegendText = seriesSpec.LegendText,
 				Points = seriesSpec.Points,
-				StrokeColor = seriesSpec.BorderColor,
-				StrokeStyle = seriesSpec.BorderStyle,
-				StrokeWidth = seriesSpec.BorderWidth,
+				StrokeColor = seriesSpec.StrokeColor,
+				StrokeStyle = seriesSpec.StrokeStyle,
+				StrokeWidth = seriesSpec.StrokeWidth,
 				Width = chart.ChartArea.InnerPlot.Width,
 				XPosition = chart.ChartArea.InnerPlot.XPosition,
 				XRadius = chart.ChartArea.InnerPlot.XRadius,
@@ -220,6 +219,33 @@ public class ChartSpecification
 				YRadius = chart.ChartArea.InnerPlot.YRadius,
 			};
 			chart.Series.Add(series);
+		}
+
+		// Annotations
+		var annotationIndex = 0;
+		foreach (var annotationSpec in AnnotationList)
+		{
+			var annotation = new Annotation(chartBackgroundArea, $"Annotation {++annotationIndex}")
+			{
+				// Group
+				StrokeColor = annotationSpec.StrokeColor,
+				StrokeWidth = annotationSpec.StrokeWidth,
+				StrokeStyle = annotationSpec.StrokeStyle,
+				XPosition = annotationSpec.XPosition,
+				YPosition = annotationSpec.YPosition,
+				XRadius = annotationSpec.XRadius,
+				YRadius = annotationSpec.YRadius,
+				FillColor = annotationSpec.FillColor,
+				FontSize = annotationSpec.FontSize,
+				Height = annotationSpec.Height,
+				Width = annotationSpec.Width,
+
+				// Annotation-specific
+				Text = annotationSpec.Text,
+				HorizontalAlignment = annotationSpec.HorizontalAlignment,
+				VerticalAlignment = annotationSpec.VerticalAlignment,
+			};
+			chart.Annotations.Add(annotation);
 		}
 
 		return chart;
