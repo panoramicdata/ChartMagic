@@ -1,8 +1,4 @@
-﻿using PanoramicData.ChartMagic.Interfaces;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-
-namespace PanoramicData.ChartMagic.Models;
+﻿namespace PanoramicData.ChartMagic.Models;
 
 public class ChartElementCollection<T> : Collection<T>, IChartElement where T : ChartElement
 {

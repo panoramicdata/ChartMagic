@@ -1,12 +1,4 @@
-﻿using PanoramicData.ChartMagic.Models;
-using PanoramicData.ChartMagic.Test.Models;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-
-namespace PanoramicData.ChartMagic.Test;
+﻿namespace PanoramicData.ChartMagic.Test;
 
 public class RenderTest
 {

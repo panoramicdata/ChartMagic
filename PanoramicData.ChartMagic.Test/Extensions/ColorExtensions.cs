@@ -1,6 +1,4 @@
-﻿using System.Drawing;
-
-namespace PanoramicData.ChartMagic.Test.Extensions;
+﻿namespace PanoramicData.ChartMagic.Test.Extensions;
 
 internal static class ColorExtensions
 {

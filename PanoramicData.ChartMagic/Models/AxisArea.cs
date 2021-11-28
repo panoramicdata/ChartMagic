@@ -1,6 +1,4 @@
-﻿using PanoramicData.ChartMagic.Interfaces;
-
-namespace PanoramicData.ChartMagic.Models;
+﻿namespace PanoramicData.ChartMagic.Models;
 
 public class AxisArea : ChartNamedElement
 {

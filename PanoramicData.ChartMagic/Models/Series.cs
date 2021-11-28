@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Drawing;
-
-namespace PanoramicData.ChartMagic.Models;
+﻿namespace PanoramicData.ChartMagic.Models;
 
 public class Series : ChartNamedElement
 {

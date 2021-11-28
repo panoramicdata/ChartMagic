@@ -1,8 +1,4 @@
-﻿using PanoramicData.ChartMagic.Extensions;
-using PanoramicData.ChartMagic.Interfaces;
-using System.Drawing;
-
-namespace PanoramicData.ChartMagic.Models;
+﻿namespace PanoramicData.ChartMagic.Models;
 
 public abstract class ChartElement : ChartElementBase
 {

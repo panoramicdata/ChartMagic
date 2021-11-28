@@ -1,9 +1,4 @@
-﻿using PanoramicData.ChartMagic.Extensions;
-using PanoramicData.ChartMagic.Models;
-using System.Collections.Generic;
-using System.Drawing;
-
-namespace PanoramicData.ChartMagic.Test.Models;
+﻿namespace PanoramicData.ChartMagic.Test.Models;
 
 public class ChartSpecification
 {

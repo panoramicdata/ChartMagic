@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace PanoramicData.ChartMagic.Models;
+﻿namespace PanoramicData.ChartMagic.Models;
 
 /// <summary>Specifies style changes that can automatically be made to a label when the <see cref="P:System.Windows.Forms.DataVisualization.Charting.Axis.LabelAutoFitStyle" /> property is used.</summary>
 [Flags]

@@ -1,7 +1,3 @@
-using FluentAssertions;
-using PanoramicData.ChartMagic.Models;
-using Xunit;
-
 namespace PanoramicData.ChartMagic.Test;
 
 public class FormatTests : RenderTest

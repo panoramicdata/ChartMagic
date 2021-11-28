@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace PanoramicData.ChartMagic.Renderers;
+﻿namespace PanoramicData.ChartMagic.Renderers;
 
 internal class AxisHandlerResult
 {

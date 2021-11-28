@@ -1,8 +1,4 @@
-﻿using PanoramicData.ChartMagic.Models;
-using System;
-using System.Linq;
-
-namespace PanoramicData.ChartMagic.Renderers;
+﻿namespace PanoramicData.ChartMagic.Renderers;
 
 internal class AxisHandler
 {

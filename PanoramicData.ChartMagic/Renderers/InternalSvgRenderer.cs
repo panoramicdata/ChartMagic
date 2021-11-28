@@ -1,12 +1,4 @@
-﻿using PanoramicData.ChartMagic.Extensions;
-using PanoramicData.ChartMagic.Models;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Text;
-using System.Xml;
-
-namespace PanoramicData.ChartMagic.Renderers;
+﻿namespace PanoramicData.ChartMagic.Renderers;
 
 internal class InternalSvgRenderer
 {
@@ -26,10 +18,10 @@ internal class InternalSvgRenderer
 		var axisHandlerResult = axisHandler.Process();
 
 		var xmlDeclaration = _xmlDocument.CreateXmlDeclaration("1.0", "UTF-16", "yes");
-		XmlElement root = _xmlDocument.DocumentElement;
+		var root = _xmlDocument.DocumentElement;
 		_xmlDocument.InsertBefore(xmlDeclaration, root);
 
-		XmlElement svg = _xmlDocument.CreateElement(string.Empty, "svg", string.Empty);
+		var svg = _xmlDocument.CreateElement(string.Empty, "svg", string.Empty);
 		_xmlDocument.AppendChild(svg);
 		svg.SetAttribute("width", chart.ChartBackgroundArea.Width.ToString(CultureInfo.InvariantCulture));
 		var totalHeight = chart.ChartBackgroundArea.Height;

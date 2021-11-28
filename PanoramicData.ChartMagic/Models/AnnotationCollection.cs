@@ -1,7 +1,4 @@
-﻿using PanoramicData.ChartMagic.Interfaces;
-using System.Collections.Generic;
-
-namespace PanoramicData.ChartMagic.Models;
+﻿namespace PanoramicData.ChartMagic.Models;
 
 public class AnnotationCollection : ChartNamedElementCollection<Annotation>
 {

@@ -1,12 +1,4 @@
-﻿using PanoramicData.ChartMagic.Renderers;
-using Svg;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.IO;
-
-namespace PanoramicData.ChartMagic.Models;
+﻿namespace PanoramicData.ChartMagic.Models;
 
 public class Chart : RootChartElement
 {
