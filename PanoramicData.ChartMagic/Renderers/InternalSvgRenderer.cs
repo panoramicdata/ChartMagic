@@ -22,10 +22,16 @@ internal class InternalSvgRenderer
 		_xmlDocument.InsertBefore(xmlDeclaration, root);
 
 		var svg = _xmlDocument.CreateElement(string.Empty, "svg", string.Empty);
+		svg.SetAttribute("xmlns", "http://www.w3.org/2000/svg");
+		svg.SetAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 		_xmlDocument.AppendChild(svg);
 		svg.SetAttribute("width", chart.ChartBackgroundArea.Width.ToString(CultureInfo.InvariantCulture));
 		var totalHeight = chart.ChartBackgroundArea.Height;
 		svg.SetAttribute("height", totalHeight.ToString(CultureInfo.InvariantCulture));
+
+		// Always define a defs node
+		var defs = _xmlDocument.CreateElement(string.Empty, "defs", string.Empty);
+		svg.AppendChild(defs);
 
 		// Chart background area
 		var chartBackgroundAreaNode = GetGroup(chart.ChartBackgroundArea, totalHeight);
@@ -35,75 +41,106 @@ internal class InternalSvgRenderer
 		var chartAreaNode = GetGroup(chart.ChartArea, totalHeight);
 		chartBackgroundAreaNode.AppendChild(chartAreaNode);
 
-		// X Axis
-		var xAxisNode = GetGroup(chart.ChartArea.XAxis, totalHeight);
-		chartAreaNode.AppendChild(xAxisNode);
-
-		// Y Axis
-		var yAxisNode = GetGroup(chart.ChartArea.YAxis, totalHeight);
-		chartAreaNode.AppendChild(yAxisNode);
-
 		// Inner Plot background
 		var innerPlotNode = GetGroup(chart.ChartArea.InnerPlot, totalHeight);
 		chartAreaNode.AppendChild(innerPlotNode);
 
-		var maxPointIndex = axisHandlerResult.MaxXCount;
+		var maxPointIndex = axisHandlerResult.MaxXCount ?? throw new InvalidOperationException("Cannot graph with a null Max X");
 
-		// TODO - snap to axis grid lines
-		var yAxisDisplayStart = chart.ChartArea.YAxis.Min ?? axisHandlerResult.MinYDouble;
-		var yAxisDisplayEnd = chart.ChartArea.YAxis.Max ?? axisHandlerResult.MaxYDouble;
+		// Determine axis locations
+		var xAxisDisplayStart = chart.ChartArea.XAxis.Min ?? axisHandlerResult.MinX ?? 0;
+		var xAxisDisplayEnd = chart.ChartArea.XAxis.Max ?? axisHandlerResult.MaxX ?? 0;
+		var xAxisDisplaxRange = xAxisDisplayEnd - xAxisDisplayStart;
+		var yAxisDisplayStart = chart.ChartArea.YAxis.Min ?? axisHandlerResult.MinY ?? 0;
+		var yAxisDisplayEnd = chart.ChartArea.YAxis.Max ?? axisHandlerResult.MaxY ?? 0;
 		var yAxisDisplayRange = yAxisDisplayEnd - yAxisDisplayStart;
 
 		// Series
 		var innerPlotHeight = chart.ChartArea.InnerPlot.Height;
+		var innerPlotWidth = chart.ChartArea.InnerPlot.Width;
 		var stackedColumnDictionary = new Dictionary<string, double>();
 		var stackedAreaDictionary = new Dictionary<string, double>();
+		var lastStackedColumnDictionary = new Dictionary<string, double>();
+		var lastStackedAreaDictionary = new Dictionary<string, double>();
+		var stackLines = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
+		stackLines.SetAttribute("id", "stackLines");
+		var seriesIndex = -1;
 		foreach (var series in chart.Series)
 		{
-			var pointIndex = 0;
+			var seriesNode = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
+			seriesNode.SetAttribute("id", $"series{++seriesIndex}");
+
+			// Add markers to defs if required
+			var seriesMarkerId = $"series{seriesIndex}Marker";
+			switch (series.MarkerStyle)
+			{
+				case MarkerStyle.Circle:
+					var circleDef = _xmlDocument.CreateElement(string.Empty, "circle", string.Empty);
+					circleDef.SetAttribute("id", seriesMarkerId);
+					circleDef.SetAttribute("r", (series.MarkerSize is not null ? series.MarkerSize : series.StrokeWidth).ToString());
+					circleDef.SetAttribute("fill", $"{(series.MarkerFillColor ?? series.FillColor).ToHex()}");
+					circleDef.SetAttribute("stroke", $"{(series.MarkerStrokeColor ?? series.StrokeColor).ToHex()}");
+					circleDef.SetAttribute("stroke-width", $"{series.MarkerStrokeWidth ?? series.StrokeWidth}");
+					defs.AppendChild(circleDef);
+					break;
+				case MarkerStyle.None:
+					break;
+				default:
+					throw new NotSupportedException($"Marker type {series.MarkerStyle} not supported.");
+			}
+
+			var stackDictionary = series.ChartType switch
+			{
+				SeriesChartType.StackedColumn => stackedColumnDictionary,
+				SeriesChartType.StackedArea => stackedAreaDictionary,
+				_ => null
+			};
+
 			var pathNode = _xmlDocument.CreateElement(string.Empty, "path", string.Empty);
 			var areaNode = _xmlDocument.CreateElement(string.Empty, "path", string.Empty);
 			var pathStringBuilder = new StringBuilder();
 			var areaStringBuilder = new StringBuilder($"M0 {innerPlotHeight}");
-			var lastXPosition = (float?)null;
+			var returnPathPoints = new List<Tuple<double, double>>();
 			var isFirstPoint = true;
+			var markerNodes = new List<XmlElement>();
 			foreach (var chartPoint in series.Points)
 			{
 				var xValue = chartPoint.XValue;
 				var xValueString = xValue.ToString() ?? string.Empty;
 				var yPointValue = chartPoint.YValue;
-				var yValue = series.ChartType switch
+				double yValue;
+				var previousYValue = stackDictionary is not null ? stackDictionary.TryGetValue(xValueString, out var stackedColumnValue) ? (double?)stackedColumnValue : null : null;
+				if (stackDictionary is not null && yPointValue is not null)
 				{
-					SeriesChartType.StackedColumn
-						=> stackedColumnDictionary.TryGetValue(xValueString ?? string.Empty, out var stackedColumnValue) ? stackedColumnValue : 0,
-					SeriesChartType.StackedArea
-						=> stackedAreaDictionary.TryGetValue(xValueString ?? string.Empty, out var stackedAreaValue) ? stackedAreaValue : 0,
-					SeriesChartType.StackedBar or
-					SeriesChartType.StackedBar100 or
-					SeriesChartType.StackedColumn100 or
-					SeriesChartType.StackedArea100
-						=> throw new NotSupportedException(),
-					_ => 0
-				} + yPointValue ?? 0;
+					yValue = (double)(yPointValue! + (previousYValue ?? 0));
+					stackDictionary[xValueString] = yValue;
+				}
+				else
+				{
+					yValue = yPointValue ?? 0;
+				}
 
 				// simple left to right, equidistanced for now
-				var xPosition = lastXPosition = chart.ChartArea.InnerPlot.Width * pointIndex++ / maxPointIndex;
-				var yPosition = innerPlotHeight * (1 - ((yValue - yAxisDisplayStart) / yAxisDisplayRange));
+				var xPosition = Math.Round(innerPlotWidth * (xValue - xAxisDisplayStart) / xAxisDisplaxRange, 2);
+				var yPosition = Math.Round(innerPlotHeight * (1 - ((yValue - yAxisDisplayStart) / yAxisDisplayRange)), 2);
+				if (previousYValue is not null)
+				{
+					var previousYPosition = Math.Round(innerPlotHeight * (1 - (((double)previousYValue - yAxisDisplayStart) / yAxisDisplayRange)), 2);
+					returnPathPoints.Add(new Tuple<double, double>(xPosition, previousYPosition));
+				}
 
 				// Letter - always M to start, afterwards L unless the previous value is null
 				pathStringBuilder.Append($"{(isFirstPoint ? "M" : " L")}{xPosition} {yPosition}");
 				areaStringBuilder.Append($" L{xPosition} {yPosition}");
 				isFirstPoint = false;
 
-				// Add to stacks if needed
-				switch (series.ChartType)
+				// Add marker if appropriate
+				if (series.MarkerStyle != MarkerStyle.None)
 				{
-					case SeriesChartType.StackedColumn:
-						stackedColumnDictionary[xValueString ?? string.Empty] = yValue;
-						break;
-					case SeriesChartType.StackedArea:
-						stackedColumnDictionary[xValueString ?? string.Empty] = yValue;
-						break;
+					var markerNode = _xmlDocument.CreateElement(string.Empty, "use", string.Empty);
+					markerNode.SetAttribute("xlink:href", $"#{seriesMarkerId}");
+					markerNode.SetAttribute("transform", $"translate({xPosition} {yPosition})");
+					markerNodes.Add(markerNode);
 				}
 			}
 
@@ -112,10 +149,26 @@ internal class InternalSvgRenderer
 			{
 				case SeriesChartType.Area:
 				case SeriesChartType.StackedArea:
-					areaStringBuilder.Append($"L {lastXPosition} {innerPlotHeight} Z");
+					if (returnPathPoints.Count == 0)
+					{
+						returnPathPoints.Add(
+							new(
+								innerPlotWidth,
+								innerPlotHeight
+							)
+						);
+					}
+					areaStringBuilder.Append(string.Join("", returnPathPoints.AsEnumerable().Reverse().Select(p => $"L{p.Item1} {p.Item2}")));
+					areaStringBuilder.Append('Z');
 					areaNode.SetAttribute("d", areaStringBuilder.ToString());
-					areaNode.SetAttribute("style", $"stroke:none; fill:{series.FillColor.ToHex()};");
-					innerPlotNode.AppendChild(areaNode);
+					areaNode.SetStyle(series, applyStroke: false);
+					seriesNode.AppendChild(areaNode);
+					// Store lastStackedAreaDictionary
+					lastStackedAreaDictionary = new();
+					foreach (var key in stackedAreaDictionary.Keys)
+					{
+						lastStackedAreaDictionary[key] = stackedAreaDictionary[key];
+					}
 					break;
 			}
 
@@ -126,11 +179,40 @@ internal class InternalSvgRenderer
 				case SeriesChartType.Line:
 				case SeriesChartType.FastLine:
 					pathNode.SetAttribute("d", pathStringBuilder.ToString());
-					pathNode.SetAttribute("style", $"stroke:{series.StrokeColor.ToHex()}; fill:none; stroke-width:{series.StrokeWidth};");
-					innerPlotNode.AppendChild(pathNode);
+					pathNode.SetStyle(series, applyFill: false);
+					seriesNode.AppendChild(pathNode);
+					// Markers
+					foreach (var markerNode in markerNodes)
+					{
+						seriesNode.AppendChild(markerNode);
+					}
+					break;
+				case SeriesChartType.StackedArea:
+					pathNode.SetAttribute("d", pathStringBuilder.ToString());
+					pathNode.SetStyle(series, applyFill: false);
+					stackLines.AppendChild(pathNode);
+					// Markers
+					foreach (var markerNode in markerNodes)
+					{
+						stackLines.AppendChild(markerNode);
+					}
 					break;
 			}
+
+			innerPlotNode.AppendChild(seriesNode);
 		}
+
+		if (stackLines.ChildNodes.Count != 0)
+		{
+			innerPlotNode.AppendChild(stackLines);
+		}
+		// X Axis
+		var xAxisNode = GetGroup(chart.ChartArea.XAxis, totalHeight);
+		chartAreaNode.AppendChild(xAxisNode);
+
+		// Y Axis
+		var yAxisNode = GetGroup(chart.ChartArea.YAxis, totalHeight);
+		chartAreaNode.AppendChild(yAxisNode);
 
 		// Legends
 		if (chart.Legends.Count > 0)
@@ -153,6 +235,13 @@ internal class InternalSvgRenderer
 				HorizontalAlignment.Right => "end",
 				_ => throw new NotSupportedException($"Unsupported HorizontalAlignment '{annotation.HorizontalAlignment}'")
 			});
+			textNode.SetAttribute("alignment-baseline", annotation.VerticalAlignment switch
+			{
+				VerticalAlignment.Top => "hanging",
+				VerticalAlignment.Middle => "middle",
+				VerticalAlignment.Bottom => "baseline",
+				_ => throw new NotSupportedException($"Unsupported VerticalAlignment '{annotation.VerticalAlignment}'")
+			});
 			annotationNode.AppendChild(textNode);
 			chartBackgroundAreaNode.AppendChild(annotationNode);
 		}
@@ -165,7 +254,7 @@ internal class InternalSvgRenderer
 		writer.Flush();
 	}
 
-	private XmlElement GetGroup(ChartNamedElement element, float totalHeight)
+	private XmlElement GetGroup(ChartNamedElement element, double totalHeight)
 	{
 		var groupNode = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
 		var translation = $"{element.XPosition.ToString(CultureInfo.InvariantCulture)},{(totalHeight - element.Height - element.YPosition).ToString(CultureInfo.InvariantCulture)}";
@@ -184,49 +273,13 @@ internal class InternalSvgRenderer
 		{
 			rectNode.SetAttribute("ry", element.YRadius.ToString(CultureInfo.InvariantCulture));
 		}
-		var style = new List<string>();
-		if (element.FillColor != Colors.Transparent)
-		{
-			style.Add($"fill:{element.FillColor.ToHex()}");
-			if (element.FillColor.A != 255)
-			{
-				style.Add($"opacity:{(element.FillColor.A / 255f).ToString("F2", CultureInfo.InvariantCulture)}");
-			}
-		}
-		if (element.StrokeColor != Colors.Transparent && element.StrokeWidth != 0)
-		{
-			style.Add($"stroke:{element.StrokeColor.ToHex()}");
-			if (element.StrokeColor.A != 255)
-			{
-				style.Add($"stroke-opacity:{(element.StrokeColor.A / 255f).ToString("F2", CultureInfo.InvariantCulture)}");
-			}
-			switch (element.StrokeStyle)
-			{
-				case ChartDashStyle.Dash:
-					style.Add("stroke-dasharray:5,2");
-					break;
-				case ChartDashStyle.DashDot:
-					style.Add("stroke-dasharray:5,2,1,2");
-					break;
-				case ChartDashStyle.DashDotDot:
-					style.Add("stroke-dasharray:5,2,1,2,1,2");
-					break;
-				case ChartDashStyle.Dot:
-					style.Add("stroke-dasharray:5,2");
-					break;
-			}
-			style.Add($"stroke-width:{element.StrokeWidth.ToString(CultureInfo.InvariantCulture)}");
-		}
-		if (style.Count != 0)
-		{
-			rectNode.SetAttribute("style", string.Join(";", style));
-		}
+		rectNode.SetStyle(element);
 		groupNode.AppendChild(rectNode);
 
 		if (_debug)
 		{
 			var debugTextNode = _xmlDocument.CreateElement(string.Empty, "text", string.Empty);
-			debugTextNode.SetAttribute("y", "20");
+			debugTextNode.SetAttribute("alignment-baseline", "hanging");
 			debugTextNode.InnerText = element.Name;
 			groupNode.AppendChild(debugTextNode);
 		}

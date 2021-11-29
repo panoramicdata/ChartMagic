@@ -12,4 +12,9 @@ public class Series : ChartNamedElement
 	public ChartValueType XValueType { get; set; }
 	public string? LabelText { get; set; }
 	public string? LegendText { get; set; }
+	public MarkerStyle MarkerStyle { get; set; } = MarkerStyle.None;
+	public Color? MarkerStrokeColor { get; set; }
+	public Color? MarkerFillColor { get; set; }
+	public double? MarkerStrokeWidth { get; set; }
+	public double? MarkerSize { get; set; }
 }

@@ -9,5 +9,5 @@ public static class Colors
 	public static string ToHex(this Color color)
 		=> $"#{color.R:X2}{color.G:X2}{color.B:X2}";
 
-	public static Color Transparent = Color.FromArgb(0, 0, 0, 0);
+	public readonly static Color Transparent = Color.FromArgb(0, 0, 0, 0);
 }

@@ -25,53 +25,56 @@ internal class AxisHandler
 			throw new NotSupportedException("All Series must have the same XValueType.");
 		}
 
-		result.MinYDouble = _chart.Series.Min(s => s.Points.Where(p => p.YValue is not null).Min(p => (double)p.YValue!));
-		result.MaxYDouble = _chart.Series.Max(s => s.Points.Where(p => p.YValue is not null).Max(p => (double)p.YValue!));
+		result.MinY = _chart.Series.Min(s => s.Points.Where(p => p.YValue is not null).Min(p => (double)p.YValue!));
 		result.MaxXCount = _chart.Series.Max(s => s.Points.Count);
 
-		switch (firstXValueType)
-		{
-			case ChartValueType.Auto:
-				break;
-			case ChartValueType.Double:
-				result.MinXDouble = _chart.Series.Min(s => s.Points.Where(p => p.XValue is not null).Min(p => (double)p.XValue!));
-				result.MaxXDouble = _chart.Series.Max(s => s.Points.Where(p => p.XValue is not null).Max(p => (double)p.XValue!));
-				break;
-			case ChartValueType.Single:
-				result.MinXDouble = _chart.Series.Min(s => s.Points.Where(p => p.XValue is not null).Min(p => (float)p.XValue!));
-				result.MaxXDouble = _chart.Series.Max(s => s.Points.Where(p => p.XValue is not null).Max(p => (float)p.XValue!));
-				break;
-			case ChartValueType.Int32:
-				result.MinXDouble = _chart.Series.Min(s => s.Points.Where(p => p.XValue is not null).Min(p => (int)p.XValue!));
-				result.MaxXDouble = _chart.Series.Max(s => s.Points.Where(p => p.XValue is not null).Max(p => (int)p.XValue!));
-				break;
-			case ChartValueType.Int64:
-				result.MinXDouble = _chart.Series.Min(s => s.Points.Where(p => p.XValue is not null).Min(p => (long)p.XValue!));
-				result.MaxXDouble = _chart.Series.Max(s => s.Points.Where(p => p.XValue is not null).Max(p => (long)p.XValue!));
-				break;
-			case ChartValueType.UInt32:
-				result.MinXDouble = _chart.Series.Min(s => s.Points.Where(p => p.XValue is not null).Min(p => (uint)p.XValue!));
-				result.MaxXDouble = _chart.Series.Max(s => s.Points.Where(p => p.XValue is not null).Max(p => (uint)p.XValue!));
-				break;
-			case ChartValueType.UInt64:
-				result.MinXDouble = _chart.Series.Min(s => s.Points.Where(p => p.XValue is not null).Min(p => (ulong)p.XValue!));
-				result.MaxXDouble = _chart.Series.Max(s => s.Points.Where(p => p.XValue is not null).Max(p => (ulong)p.XValue!));
-				break;
-			case ChartValueType.String:
-				result.MinXString = _chart.Series.Min(s => s.Points.Where(p => p.XValue is not null).Min(p => (string)p.XValue!));
-				result.MaxXString = _chart.Series.Max(s => s.Points.Where(p => p.XValue is not null).Max(p => (string)p.XValue!));
-				break;
-			case ChartValueType.Date:
-			case ChartValueType.DateTime:
-			case ChartValueType.Time:
-			case ChartValueType.DateTimeOffset:
-				result.MinXDateTimeOffset = _chart.Series.Min(s => s.Points.Where(p => p.XValue is not null).Min(p => (DateTimeOffset)p.XValue!));
-				result.MaxXDateTimeOffset = _chart.Series.Max(s => s.Points.Where(p => p.XValue is not null).Max(p => (DateTimeOffset)p.XValue!));
-				break;
-			default:
-				throw new NotSupportedException($"Unsupported xAxis type {firstXValueType}");
-		}
+		result.MaxY = new[] {
+			_chart.Series.Max(s => s.Points.Where(p => p.YValue is not null).Max(p => (double)p.YValue!)),
+			GetMaxY(SeriesChartType.StackedArea),
+			GetMaxY(SeriesChartType.StackedColumn)}
+			.Max();
 
+		result.MinX = _chart.Series.Min(s => s.Points.Min(p => p.XValue!));
+		result.MaxX = _chart.Series.Max(s => s.Points.Max(p => p.XValue!));
+
+		// Apply max range corrections unless explicity set
+		var xRange = (result.MinX ?? result.MaxX) is null ? 0 : (result.MaxX! - result.MinX!).Value;
+		var yRange = (result.MinY ?? result.MaxY) is null ? 0 : (result.MaxY! - result.MinY!).Value;
+		var anyTextXAxisValues = _chart.Series.SelectMany(s => s.Points).Any(p => p.XValueString is not null);
+		if (_chart.ChartArea.XAxis.Min is null && result.MinX != 0 && anyTextXAxisValues)
+		{
+			result.MinX -= 1 / xRange;
+		}
+		if (_chart.ChartArea.XAxis.Max is null && result.MaxX != 0 && anyTextXAxisValues)
+		{
+			result.MaxX += 1 / xRange;
+		}
+		if (_chart.ChartArea.YAxis.Min is null && result.MinY != 0)
+		{
+			result.MinY -= yRange * 0.025;
+		}
+		if (_chart.ChartArea.YAxis.Max is null && result.MaxY != 0)
+		{
+			result.MaxY += yRange * 0.025;
+		}
 		return result;
+	}
+
+	private double GetMaxY(SeriesChartType seriesChartType)
+	{
+		var stackedColumnDictionary = new Dictionary<string, double>();
+		foreach (var point in _chart.Series.Where(s => s.ChartType == seriesChartType).SelectMany(s => s.Points).Where(p => p.YValue is not null))
+		{
+			var xString = point.XValue.ToString() ?? string.Empty;
+			if (!stackedColumnDictionary.ContainsKey(xString))
+			{
+				stackedColumnDictionary[xString] = point.YValue!.Value;
+			}
+			else
+			{
+				stackedColumnDictionary[xString] += point.YValue!.Value;
+			}
+		}
+		return stackedColumnDictionary.Values.Count == 0 ? 0 : stackedColumnDictionary.Values.Max();
 	}
 }

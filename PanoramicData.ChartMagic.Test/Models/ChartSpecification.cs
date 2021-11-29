@@ -17,7 +17,7 @@ public class ChartSpecification
 	public float ChartAreaYPositionPercent { get; set; } = 0;
 	public float ChartAreaXRadius { get; set; } = 0;
 	public float ChartAreaYRadius { get; set; } = 0;
-	public float ChartAreaWidthPercent { get; set; } = 80;
+	public float ChartAreaWidthPercent { get; set; } = 65;
 	public float ChartAreaHeightPercent { get; set; } = 100;
 	public Color ChartAreaBackgroundColor { get; set; } = Colors.Transparent;
 	public Color ChartAreaBorderColor { get; set; } = Colors.Transparent;
@@ -42,9 +42,9 @@ public class ChartSpecification
 
 	#region Legend
 	public LegendStyle LegendStyle { get; set; }
-	public float LegendXPositionPercent { get; set; } = 80;
-	public float LegendYPositionPercent { get; set; } = 00;
-	public float LegendWidthPercent { get; set; } = 20;
+	public float LegendXPositionPercent { get; set; } = 65;
+	public float LegendYPositionPercent { get; set; } = 0;
+	public float LegendWidthPercent { get; set; } = 35;
 	public float LegendHeightPercent { get; set; } = 100;
 	public float LegendXRadius { get; set; } = 5;
 	public float LegendYRadius { get; set; } = 5;
@@ -207,10 +207,21 @@ public class ChartSpecification
 				IsXValueIndexed = seriesSpec.IsXValueIndexed,
 				LabelText = seriesSpec.LabelText,
 				LegendText = seriesSpec.LegendText,
+
+				MarkerStyle = seriesSpec.MarkerStyle,
+				MarkerStrokeColor = seriesSpec.MarkerStrokeColor,
+				MarkerFillColor = seriesSpec.MarkerFillColor,
+				MarkerStrokeWidth = seriesSpec.MarkerStrokeWidth,
+				MarkerSize = seriesSpec.MarkerSize,
+
 				Points = seriesSpec.Points,
+
 				StrokeColor = seriesSpec.StrokeColor,
+				StrokeLineCapStyle = seriesSpec.StrokeLineCapStyle,
+				StrokeLineJoinStyle = seriesSpec.StrokeLineJoinStyle,
 				StrokeStyle = seriesSpec.StrokeStyle,
 				StrokeWidth = seriesSpec.StrokeWidth,
+
 				Width = chart.ChartArea.InnerPlot.Width,
 				XPosition = chart.ChartArea.InnerPlot.XPosition,
 				XRadius = chart.ChartArea.InnerPlot.XRadius,

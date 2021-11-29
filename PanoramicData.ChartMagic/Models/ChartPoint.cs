@@ -1,3 +1,3 @@
 ﻿namespace PanoramicData.ChartMagic.Models;
 
-public record ChartPoint(object XValue, double? YValue);
+public record ChartPoint(string? XValueString, double XValue, double? YValue);
