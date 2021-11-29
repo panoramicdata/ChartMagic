@@ -45,8 +45,6 @@ internal class InternalSvgRenderer
 		var innerPlotNode = GetGroup(chart.ChartArea.InnerPlot, totalHeight);
 		chartAreaNode.AppendChild(innerPlotNode);
 
-		var maxPointIndex = axisHandlerResult.MaxXCount ?? throw new InvalidOperationException("Cannot graph with a null Max X");
-
 		// Determine axis locations
 		var xAxisDisplayStart = chart.ChartArea.XAxis.Min ?? axisHandlerResult.MinX ?? 0;
 		var xAxisDisplayEnd = chart.ChartArea.XAxis.Max ?? axisHandlerResult.MaxX ?? 0;
