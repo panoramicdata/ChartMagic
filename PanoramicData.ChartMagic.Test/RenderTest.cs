@@ -38,10 +38,10 @@ public class RenderTest
 			new()
 			{
 				Text = "Top Left",
-				XPosition = 0,
-				YPosition = 100,
-				Width = 20,
-				Height = 20,
+				XPositionPercent = 0,
+				YPositionPercent = 100,
+				WidthPercent = 20,
+				HeightPercent = 20,
 				VerticalAlignment = VerticalAlignment.Top,
 				HorizontalAlignment = HorizontalAlignment.Left,
 				FontColor = Color.White,
@@ -52,10 +52,10 @@ public class RenderTest
 			new()
 			{
 				Text = "Middle Center",
-				XPosition = 0,
-				YPosition = 0,
-				Width = 100,
-				Height = 100,
+				XPositionPercent = 0,
+				YPositionPercent = 0,
+				WidthPercent = 100,
+				HeightPercent = 100,
 				VerticalAlignment = VerticalAlignment.Middle,
 				HorizontalAlignment = HorizontalAlignment.Center,
 				FontColor = Color.White,
@@ -64,12 +64,12 @@ public class RenderTest
 			new()
 			{
 				Text = "Bottom Right",
-				XPosition = 0,
-				YPosition = 100,
+				XPositionPercent = 0,
+				YPositionPercent = 100,
 				VerticalAlignment = VerticalAlignment.Bottom,
 				HorizontalAlignment = HorizontalAlignment.Right,
-				Width = 20,
-				Height = 20,
+				WidthPercent = 20,
+				HeightPercent = 20,
 				FontColor = Color.White,
 				FillColor = Color.DarkGray
 			}
@@ -92,7 +92,6 @@ public class RenderTest
 		StrokeWidth = 3,
 		IsXValueIndexed = true,
 		LegendText = "Yay",
-		XValueType = ChartValueType.Auto,
 		Points = Enumerable.Range(1, ChartXCount).Select(i => new ChartPoint(null, i, 25 + 3 * Math.Sin((float)i / ChartXCount * 2 * Math.PI))).ToList(),
 		MarkerStyle = MarkerStyle.Circle,
 		MarkerFillColor = Color.White
@@ -106,7 +105,6 @@ public class RenderTest
 		LabelText = "Woo2",
 		IsXValueIndexed = true,
 		LegendText = "Yay2",
-		XValueType = ChartValueType.Auto,
 		Points = Enumerable.Range(1, ChartXCount).Select(i => new ChartPoint(null, i, 15 + 3 * Math.Sin((float)i / ChartXCount * 2 * Math.PI))).ToList(),
 		MarkerStyle = MarkerStyle.Circle
 	};
@@ -121,7 +119,6 @@ public class RenderTest
 		StrokeWidth = 1,
 		IsXValueIndexed = true,
 		LegendText = "Yay3A",
-		XValueType = ChartValueType.Auto,
 		Points = Enumerable.Range(1, ChartXCount).Select(i => new ChartPoint(null, i, 2 + 2 * Math.Sin((float)i / ChartXCount * 2 * Math.PI))).ToList(),
 		MarkerStyle = MarkerStyle.Circle
 	};
@@ -135,7 +132,6 @@ public class RenderTest
 		StrokeWidth = 1,
 		IsXValueIndexed = true,
 		LegendText = "Yay3B",
-		XValueType = ChartValueType.Auto,
 		Points = Enumerable.Range(1, ChartXCount).Select(i => new ChartPoint(null, i, 2 + 2 * Math.Sin((float)i / ChartXCount * 2 * Math.PI))).ToList(),
 		MarkerStyle = MarkerStyle.Circle
 	};

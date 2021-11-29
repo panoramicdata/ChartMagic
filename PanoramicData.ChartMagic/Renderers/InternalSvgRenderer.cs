@@ -255,7 +255,7 @@ internal class InternalSvgRenderer
 	private XmlElement GetGroup(ChartNamedElement element, double totalHeight)
 	{
 		var groupNode = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
-		var translation = $"{element.XPosition.ToString(CultureInfo.InvariantCulture)},{(totalHeight - element.Height - element.YPosition).ToString(CultureInfo.InvariantCulture)}";
+		var translation = $"{element.XPositionPercent.ToString(CultureInfo.InvariantCulture)},{(totalHeight - element.Height - element.YPositionPercent).ToString(CultureInfo.InvariantCulture)}";
 		if (translation != "0,0")
 		{
 			groupNode.SetAttribute("transform", $"translate({translation})");
@@ -263,13 +263,13 @@ internal class InternalSvgRenderer
 		var rectNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
 		rectNode.SetAttribute("width", element.Width.ToString(CultureInfo.InvariantCulture));
 		rectNode.SetAttribute("height", element.Height.ToString(CultureInfo.InvariantCulture));
-		if (element.XRadius != 0)
+		if (element.XRadiusPixels != 0)
 		{
-			rectNode.SetAttribute("rx", element.XRadius.ToString(CultureInfo.InvariantCulture));
+			rectNode.SetAttribute("rx", element.XRadiusPixels.ToString(CultureInfo.InvariantCulture));
 		}
-		if (element.YRadius != 0)
+		if (element.YRadiusPixels != 0)
 		{
-			rectNode.SetAttribute("ry", element.YRadius.ToString(CultureInfo.InvariantCulture));
+			rectNode.SetAttribute("ry", element.YRadiusPixels.ToString(CultureInfo.InvariantCulture));
 		}
 		rectNode.SetStyle(element);
 		groupNode.AppendChild(rectNode);

@@ -6,10 +6,10 @@ public abstract class ChartElement : ChartElementBase
 	{
 	}
 
-	public double XPosition { get; set; }
-	public double YPosition { get; set; }
-	public double XRadius { get; set; }
-	public double YRadius { get; set; }
+	public double XPositionPercent { get; set; }
+	public double YPositionPercent { get; set; }
+	public double XRadiusPixels { get; set; }
+	public double YRadiusPixels { get; set; }
 	public double Width { get; set; }
 	public double Height { get; set; }
 	public Color FillColor { get; set; } = Colors.Transparent;

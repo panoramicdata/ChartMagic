@@ -19,12 +19,6 @@ internal class AxisHandler
 			return result;
 		};
 
-		var firstXValueType = _chart.Series[0].XValueType;
-		if (_chart.Series.Any(s => s.XValueType != firstXValueType))
-		{
-			throw new NotSupportedException("All Series must have the same XValueType.");
-		}
-
 		result.MinY = _chart.Series.Min(s => s.Points.Where(p => p.YValue is not null).Min(p => (double)p.YValue!));
 		result.MaxXCount = _chart.Series.Max(s => s.Points.Count);
 
