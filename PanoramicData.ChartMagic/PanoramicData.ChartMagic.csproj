@@ -11,7 +11,8 @@
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<Description>ChartMagic</Description>
 		<EnableNETAnalyzers>true</EnableNETAnalyzers>
-
+		<Company>Panoramic Data Limited</Company>
+		<Copyright>Panoramic Data Limited 2021</Copyright>
 		<PackageReleaseNotes>
 			Initial release
 		</PackageReleaseNotes>
