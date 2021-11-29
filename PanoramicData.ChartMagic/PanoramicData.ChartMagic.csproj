@@ -4,6 +4,17 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<LangVersion>latest</LangVersion>
 		<Nullable>enable</Nullable>
+		<PackageTags>ChartMagic</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<!--<PackageIcon>ReportMagicCircle.png</PackageIcon>-->
+		<!--<PackageProjectUrl>https://reportmagic.net/help/rest_api</PackageProjectUrl>-->
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<Description>ChartMagic</Description>
+		<EnableNETAnalyzers>true</EnableNETAnalyzers>
+
+		<PackageReleaseNotes>
+			Initial release
+		</PackageReleaseNotes>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -12,7 +23,7 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Svg" Version="3.2.3" />
-		<PackageReference Include="System.Drawing.Common" Version="5.0.1" />
+		<PackageReference Include="System.Drawing.Common" Version="6.0.0" />
 	</ItemGroup>
 
 </Project>
