@@ -60,8 +60,8 @@ public class Chart : RootChartElement
 			// No. Output as a bitmap
 
 			var bmp = svgDocument.Draw(
-				(int)ChartBackgroundArea.WidthPercent,
-				(int)ChartBackgroundArea.HeightPercent
+				widthPixels,
+				heightPixels
 				);
 			switch (chartImageFormat)
 			{
