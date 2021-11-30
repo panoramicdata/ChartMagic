@@ -8,7 +8,7 @@ public class RenderTest
 	{
 		var chart = chartSpecification.ToChart();
 		using var fileStream = new FileStream(fileInfo.FullName, FileMode.Create, FileAccess.Write);
-		chart.SaveImage(fileStream, Enum.Parse<ChartImageFormat>(fileInfo.FullName.Split('.').Last(), true), true);
+		chart.SaveImage(fileStream, Enum.Parse<ChartImageFormat>(fileInfo.FullName.Split('.').Last(), true), 1920, 1080, true);
 	}
 
 	protected static FileInfo GetTempFileName(ChartImageFormat chartImageFormat)
@@ -41,7 +41,7 @@ public class RenderTest
 				XPositionPercent = 0,
 				YPositionPercent = 100,
 				WidthPercent = 20,
-				HeightPercent = 20,
+				HeightPercent = 5,
 				VerticalAlignment = VerticalAlignment.Top,
 				HorizontalAlignment = HorizontalAlignment.Left,
 				FontColor = Color.White,
@@ -52,10 +52,10 @@ public class RenderTest
 			new()
 			{
 				Text = "Middle Center",
-				XPositionPercent = 0,
-				YPositionPercent = 0,
-				WidthPercent = 100,
-				HeightPercent = 100,
+				XPositionPercent = 50,
+				YPositionPercent = 50,
+				WidthPercent = 10,
+				HeightPercent = 5,
 				VerticalAlignment = VerticalAlignment.Middle,
 				HorizontalAlignment = HorizontalAlignment.Center,
 				FontColor = Color.White,
@@ -64,12 +64,12 @@ public class RenderTest
 			new()
 			{
 				Text = "Bottom Right",
-				XPositionPercent = 0,
-				YPositionPercent = 100,
+				XPositionPercent = 90,
+				YPositionPercent = 0,
 				VerticalAlignment = VerticalAlignment.Bottom,
 				HorizontalAlignment = HorizontalAlignment.Right,
 				WidthPercent = 20,
-				HeightPercent = 20,
+				HeightPercent = 5,
 				FontColor = Color.White,
 				FillColor = Color.DarkGray
 			}

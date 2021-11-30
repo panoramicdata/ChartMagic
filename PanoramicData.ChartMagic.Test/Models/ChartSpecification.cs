@@ -6,8 +6,6 @@ public class ChartSpecification
 
 	public object? DoughnutRadius { get; set; }
 
-	public int ChartWidth { get; set; } = 1440;
-	public int ChartHeight { get; set; } = 1080;
 	public Color ChartBackgroundColor { get; set; } = Colors.Transparent;
 	public Color ChartBorderColor { get; set; } = Colors.Transparent;
 	public int ChartBorderWidth { get; set; } = 2;
@@ -15,8 +13,8 @@ public class ChartSpecification
 
 	public double ChartAreaXPositionPercent { get; set; } = 0;
 	public double ChartAreaYPositionPercent { get; set; } = 0;
-	public double ChartAreaXRadius { get; set; } = 0;
-	public double ChartAreaYRadius { get; set; } = 0;
+	public double ChartAreaXRadiusPixels { get; set; } = 10;
+	public double ChartAreaYRadiusPixels { get; set; } = 10;
 	public double ChartAreaWidthPercent { get; set; } = 65;
 	public double ChartAreaHeightPercent { get; set; } = 100;
 	public Color ChartAreaBackgroundColor { get; set; } = Colors.Transparent;
@@ -30,8 +28,8 @@ public class ChartSpecification
 	public int InnerPlotYPositionPercent { get; set; } = 10;
 	public int InnerPlotWidthPercent { get; set; } = 90;
 	public int InnerPlotHeightPercent { get; set; } = 90;
-	public double InnerPlotXRadius { get; set; } = 5;
-	public double InnerPlotYRadius { get; set; } = 5;
+	public double InnerPlotXRadiusPixels { get; set; } = 5;
+	public double InnerPlotYRadiusPixels { get; set; } = 5;
 	public double InnerPlotFontSize { get; set; } = 20;
 	public Color InnerPlotBackgroundColor { get; set; } = Colors.Transparent;
 	public Color InnerPlotBorderColor { get; set; } = Colors.Transparent;
@@ -44,8 +42,8 @@ public class ChartSpecification
 	public double LegendYPositionPercent { get; set; } = 0;
 	public double LegendWidthPercent { get; set; } = 35;
 	public double LegendHeightPercent { get; set; } = 100;
-	public double LegendXRadius { get; set; } = 5;
-	public double LegendYRadius { get; set; } = 5;
+	public double LegendXRadiusPixels { get; set; } = 5;
+	public double LegendYRadiusPixels { get; set; } = 5;
 	public double LegendFontSize { get; set; } = 20;
 	public Color LegendBackgroundColor { get; set; } = Colors.Transparent;
 	public Color LegendBorderColor { get; set; } = Colors.Transparent;
@@ -126,8 +124,8 @@ public class ChartSpecification
 		var chartBackgroundArea = new ChartBackgroundArea(chart, "Chart Background")
 		{
 			FillColor = ChartBackgroundColor,
-			Width = ChartWidth,
-			Height = ChartHeight,
+			WidthPercent = 100,
+			HeightPercent = 100,
 			StrokeColor = ChartBorderColor,
 			StrokeWidth = ChartBorderWidth,
 			StrokeStyle = ChartBorderLineDashStyle,
@@ -138,12 +136,12 @@ public class ChartSpecification
 		// Legend
 		var legend = new Legend(chart, "Legend")
 		{
-			XPositionPercent = LegendXPositionPercent * ChartWidth / 100,
-			YPositionPercent = LegendYPositionPercent * ChartHeight / 100,
-			XRadiusPixels = LegendXRadius,
-			YRadiusPixels = LegendYRadius,
-			Width = ChartWidth * LegendWidthPercent / 100,
-			Height = ChartHeight * LegendHeightPercent / 100,
+			XPositionPercent = LegendXPositionPercent,
+			YPositionPercent = LegendYPositionPercent,
+			XRadiusPixels = LegendXRadiusPixels,
+			YRadiusPixels = LegendYRadiusPixels,
+			WidthPercent = LegendWidthPercent,
+			HeightPercent = LegendHeightPercent,
 			FillColor = LegendBackgroundColor,
 			StrokeColor = LegendBorderColor,
 			StrokeWidth = LegendBorderWidth,
@@ -154,24 +152,24 @@ public class ChartSpecification
 		chart.Legends.Add(legend);
 
 		// ChartArea
-		chart.ChartArea.XPositionPercent = ChartAreaXPositionPercent * ChartWidth / 100;
-		chart.ChartArea.YPositionPercent = ChartAreaYPositionPercent * ChartHeight / 100;
-		chart.ChartArea.XRadiusPixels = ChartAreaXRadius;
-		chart.ChartArea.YRadiusPixels = ChartAreaYRadius;
-		chart.ChartArea.Width = ChartWidth * ChartAreaWidthPercent / 100;
-		chart.ChartArea.Height = ChartHeight * ChartAreaHeightPercent / 100;
+		chart.ChartArea.XPositionPercent = ChartAreaXPositionPercent;
+		chart.ChartArea.YPositionPercent = ChartAreaYPositionPercent;
+		chart.ChartArea.XRadiusPixels = ChartAreaXRadiusPixels;
+		chart.ChartArea.YRadiusPixels = ChartAreaYRadiusPixels;
+		chart.ChartArea.WidthPercent = ChartAreaWidthPercent;
+		chart.ChartArea.HeightPercent = ChartAreaHeightPercent;
 		chart.ChartArea.FillColor = ChartAreaBackgroundColor;
 		chart.ChartArea.StrokeColor = ChartAreaBorderColor;
 		chart.ChartArea.StrokeWidth = ChartAreaBorderWidth;
 		chart.ChartArea.StrokeStyle = ChartAreaBorderLineDashStyle;
 
 		// ChartArea.InnerPlot
-		chart.ChartArea.InnerPlot.XPositionPercent = InnerPlotXPositionPercent * chart.ChartArea.Width / 100;
-		chart.ChartArea.InnerPlot.YPositionPercent = InnerPlotYPositionPercent * chart.ChartArea.Height / 100;
-		chart.ChartArea.InnerPlot.Width = InnerPlotWidthPercent * chart.ChartArea.Width / 100;
-		chart.ChartArea.InnerPlot.Height = InnerPlotHeightPercent * chart.ChartArea.Height / 100;
-		chart.ChartArea.InnerPlot.XRadiusPixels = InnerPlotXRadius;
-		chart.ChartArea.InnerPlot.YRadiusPixels = InnerPlotYRadius;
+		chart.ChartArea.InnerPlot.XPositionPercent = InnerPlotXPositionPercent;
+		chart.ChartArea.InnerPlot.YPositionPercent = InnerPlotYPositionPercent;
+		chart.ChartArea.InnerPlot.WidthPercent = InnerPlotWidthPercent;
+		chart.ChartArea.InnerPlot.HeightPercent = InnerPlotHeightPercent;
+		chart.ChartArea.InnerPlot.XRadiusPixels = InnerPlotXRadiusPixels;
+		chart.ChartArea.InnerPlot.YRadiusPixels = InnerPlotYRadiusPixels;
 		chart.ChartArea.InnerPlot.FontSize = InnerPlotFontSize;
 		chart.ChartArea.InnerPlot.FillColor = InnerPlotBackgroundColor;
 		chart.ChartArea.InnerPlot.StrokeColor = InnerPlotBorderColor;
@@ -180,17 +178,17 @@ public class ChartSpecification
 
 		// XAxis
 		chart.ChartArea.XAxis.FillColor = XAxisBackgroundColor;
-		chart.ChartArea.XAxis.XPositionPercent = InnerPlotXPositionPercent * chart.ChartArea.Width / 100;
+		chart.ChartArea.XAxis.XPositionPercent = InnerPlotXPositionPercent;
 		chart.ChartArea.XAxis.YPositionPercent = 0;
-		chart.ChartArea.XAxis.Width = InnerPlotWidthPercent * chart.ChartArea.Width / 100;
-		chart.ChartArea.XAxis.Height = InnerPlotYPositionPercent * chart.ChartArea.Height / 100;
+		chart.ChartArea.XAxis.WidthPercent = InnerPlotWidthPercent;
+		chart.ChartArea.XAxis.HeightPercent = InnerPlotYPositionPercent;
 
 		// YAxis
 		chart.ChartArea.YAxis.FillColor = YAxisBackgroundColor;
 		chart.ChartArea.YAxis.XPositionPercent = 0;
-		chart.ChartArea.YAxis.YPositionPercent = InnerPlotYPositionPercent * chart.ChartArea.Height / 100;
-		chart.ChartArea.YAxis.Width = InnerPlotXPositionPercent * chart.ChartArea.Width / 100;
-		chart.ChartArea.YAxis.Height = InnerPlotHeightPercent * chart.ChartArea.Height / 100;
+		chart.ChartArea.YAxis.YPositionPercent = InnerPlotYPositionPercent;
+		chart.ChartArea.YAxis.WidthPercent = InnerPlotXPositionPercent;
+		chart.ChartArea.YAxis.HeightPercent = InnerPlotHeightPercent;
 
 		// Series
 		var seriesIndex = 0;
@@ -201,7 +199,7 @@ public class ChartSpecification
 				ChartType = seriesSpec.ChartType,
 				FillColor = seriesSpec.FillColor,
 				FontSize = seriesSpec.FontSize,
-				Height = chart.ChartArea.InnerPlot.Height,
+				HeightPercent = chart.ChartArea.InnerPlot.HeightPercent,
 				IsXValueIndexed = seriesSpec.IsXValueIndexed,
 				LabelText = seriesSpec.LabelText,
 				LegendText = seriesSpec.LegendText,
@@ -219,12 +217,6 @@ public class ChartSpecification
 				StrokeLineJoinStyle = seriesSpec.StrokeLineJoinStyle,
 				StrokeStyle = seriesSpec.StrokeStyle,
 				StrokeWidth = seriesSpec.StrokeWidth,
-
-				Width = chart.ChartArea.InnerPlot.Width,
-				XPositionPercent = chart.ChartArea.InnerPlot.XPositionPercent,
-				XRadiusPixels = chart.ChartArea.InnerPlot.XRadiusPixels,
-				YPositionPercent = chart.ChartArea.InnerPlot.YPositionPercent,
-				YRadiusPixels = chart.ChartArea.InnerPlot.YRadiusPixels,
 			};
 			chart.Series.Add(series);
 		}
@@ -245,8 +237,8 @@ public class ChartSpecification
 				YRadiusPixels = annotationSpec.YRadiusPixels,
 				FillColor = annotationSpec.FillColor,
 				FontSize = annotationSpec.FontSize,
-				Height = annotationSpec.HeightPercent,
-				Width = annotationSpec.WidthPercent,
+				HeightPercent = annotationSpec.HeightPercent,
+				WidthPercent = annotationSpec.WidthPercent,
 
 				// Annotation-specific
 				Text = annotationSpec.Text,

@@ -3,11 +3,15 @@
 internal class InternalSvgRenderer
 {
 	private readonly XmlDocument _xmlDocument;
+	private readonly int _widthPixels;
+	private readonly int _heightPixels;
 	private readonly bool _debug;
 
-	public InternalSvgRenderer(bool debug)
+	public InternalSvgRenderer(int widthPixels, int heightPixels, bool debug)
 	{
 		_xmlDocument = new XmlDocument();
+		_widthPixels = widthPixels;
+		_heightPixels = heightPixels;
 		_debug = debug;
 	}
 
@@ -25,24 +29,23 @@ internal class InternalSvgRenderer
 		svg.SetAttribute("xmlns", "http://www.w3.org/2000/svg");
 		svg.SetAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 		_xmlDocument.AppendChild(svg);
-		svg.SetAttribute("width", chart.ChartBackgroundArea.Width.ToString(CultureInfo.InvariantCulture));
-		var totalHeight = chart.ChartBackgroundArea.Height;
-		svg.SetAttribute("height", totalHeight.ToString(CultureInfo.InvariantCulture));
+		svg.SetAttribute("width", _widthPixels.ToString(CultureInfo.InvariantCulture));
+		svg.SetAttribute("height", _heightPixels.ToString(CultureInfo.InvariantCulture));
 
 		// Always define a defs node
 		var defs = _xmlDocument.CreateElement(string.Empty, "defs", string.Empty);
 		svg.AppendChild(defs);
 
 		// Chart background area
-		var chartBackgroundAreaNode = GetGroup(chart.ChartBackgroundArea, totalHeight);
+		var chartBackgroundAreaNode = GetGroup(chart.ChartBackgroundArea);
 		svg.AppendChild(chartBackgroundAreaNode);
 
 		// ChartArea background
-		var chartAreaNode = GetGroup(chart.ChartArea, totalHeight);
+		var chartAreaNode = GetGroup(chart.ChartArea);
 		chartBackgroundAreaNode.AppendChild(chartAreaNode);
 
 		// Inner Plot background
-		var innerPlotNode = GetGroup(chart.ChartArea.InnerPlot, totalHeight);
+		var innerPlotNode = GetGroup(chart.ChartArea.InnerPlot);
 		chartAreaNode.AppendChild(innerPlotNode);
 
 		// Determine axis locations
@@ -54,8 +57,8 @@ internal class InternalSvgRenderer
 		var yAxisDisplayRange = yAxisDisplayEnd - yAxisDisplayStart;
 
 		// Series
-		var innerPlotHeight = chart.ChartArea.InnerPlot.Height;
-		var innerPlotWidth = chart.ChartArea.InnerPlot.Width;
+		var innerPlotHeight = _heightPixels * chart.ChartArea.InnerPlot.GetCanvasHeightPercent() / 100;
+		var innerPlotWidth = _widthPixels * chart.ChartArea.InnerPlot.GetCanvasWidthPercent() / 100;
 		var stackedColumnDictionary = new Dictionary<string, double>();
 		var stackedAreaDictionary = new Dictionary<string, double>();
 		var lastStackedColumnDictionary = new Dictionary<string, double>();
@@ -205,25 +208,25 @@ internal class InternalSvgRenderer
 			innerPlotNode.AppendChild(stackLines);
 		}
 		// X Axis
-		var xAxisNode = GetGroup(chart.ChartArea.XAxis, totalHeight);
+		var xAxisNode = GetGroup(chart.ChartArea.XAxis);
 		chartAreaNode.AppendChild(xAxisNode);
 
 		// Y Axis
-		var yAxisNode = GetGroup(chart.ChartArea.YAxis, totalHeight);
+		var yAxisNode = GetGroup(chart.ChartArea.YAxis);
 		chartAreaNode.AppendChild(yAxisNode);
 
 		// Legends
 		if (chart.Legends.Count > 0)
 		{
 			var legend = chart.Legends[0];
-			var legendNode = GetGroup(legend, totalHeight);
+			var legendNode = GetGroup(legend);
 			chartBackgroundAreaNode.AppendChild(legendNode);
 		}
 
 		// Annotations
 		foreach (var annotation in chart.Annotations)
 		{
-			var annotationNode = GetGroup(annotation, totalHeight);
+			var annotationNode = GetGroup(annotation);
 			var textNode = _xmlDocument.CreateElement(string.Empty, "text", string.Empty);
 			textNode.InnerText = annotation.Text;
 			textNode.SetAttribute("text-anchor", annotation.HorizontalAlignment switch
@@ -252,17 +255,18 @@ internal class InternalSvgRenderer
 		writer.Flush();
 	}
 
-	private XmlElement GetGroup(ChartNamedElement element, double totalHeight)
+	private XmlElement GetGroup(ChartNamedElement element)
 	{
 		var groupNode = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
-		var translation = $"{element.XPositionPercent.ToString(CultureInfo.InvariantCulture)},{(totalHeight - element.Height - element.YPositionPercent).ToString(CultureInfo.InvariantCulture)}";
+		var inverseYPositionPercent = element.GetCanvasYLocationPercent() + element.GetCanvasHeightPercent();
+		var translation = $"{_widthPixels * element.GetCanvasXLocationPercent() / 100},{_heightPixels * (100 - (inverseYPositionPercent)) / 100}";
 		if (translation != "0,0")
 		{
 			groupNode.SetAttribute("transform", $"translate({translation})");
 		}
 		var rectNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
-		rectNode.SetAttribute("width", element.Width.ToString(CultureInfo.InvariantCulture));
-		rectNode.SetAttribute("height", element.Height.ToString(CultureInfo.InvariantCulture));
+		rectNode.SetAttribute("width", (_widthPixels * element.GetCanvasWidthPercent() / 100).ToString(CultureInfo.InvariantCulture));
+		rectNode.SetAttribute("height", (_heightPixels * element.GetCanvasHeightPercent() / 100).ToString(CultureInfo.InvariantCulture));
 		if (element.XRadiusPixels != 0)
 		{
 			rectNode.SetAttribute("rx", element.XRadiusPixels.ToString(CultureInfo.InvariantCulture));

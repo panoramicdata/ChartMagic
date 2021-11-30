@@ -9,13 +9,21 @@ public class ChartArea : ChartNamedElement
 		XAxis = new AxisArea(this, "XAxis")
 		{
 			Alignment = AxisAlignment.Top,
-			IsEnabled = true
+			IsEnabled = true,
+			WidthPercent = 90,
+			HeightPercent = 10,
+			XPositionPercent = 10,
+			YPositionPercent = 0,
 		};
 
 		YAxis = new AxisArea(this, "YAxis")
 		{
 			Alignment = AxisAlignment.Right,
-			IsEnabled = true
+			IsEnabled = true,
+			WidthPercent = 10,
+			HeightPercent = 90,
+			XPositionPercent = 0,
+			YPositionPercent = 10,
 		};
 
 		XAxis2Area = new AxisArea(this, "X2Axis")

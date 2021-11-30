@@ -24,11 +24,11 @@ public class Chart : RootChartElement
 
 	public AnnotationCollection Annotations { get; }
 
-	public void SaveImage(Stream stream, ChartImageFormat chartImageFormat, bool debug = false)
+	public void SaveImage(Stream stream, ChartImageFormat chartImageFormat, int widthPixels, int heightPixels, bool debug = false)
 	{
 		if (chartImageFormat == ChartImageFormat.Svg)
 		{
-			new InternalSvgRenderer(debug)
+			new InternalSvgRenderer(widthPixels, heightPixels, debug)
 			 .SaveImage(stream, this);
 			return;
 		}
@@ -40,7 +40,7 @@ public class Chart : RootChartElement
 		{
 			using (var svgFileStream = new FileStream(svgTempFileInfo.FullName, FileMode.Create, FileAccess.Write))
 			{
-				new InternalSvgRenderer(debug)
+				new InternalSvgRenderer(widthPixels, heightPixels, debug)
 					.SaveImage(svgFileStream, this);
 				svgFileStream.Flush();
 			}
@@ -60,8 +60,8 @@ public class Chart : RootChartElement
 			// No. Output as a bitmap
 
 			var bmp = svgDocument.Draw(
-				(int)ChartBackgroundArea.Width,
-				(int)ChartBackgroundArea.Height
+				(int)ChartBackgroundArea.WidthPercent,
+				(int)ChartBackgroundArea.HeightPercent
 				);
 			switch (chartImageFormat)
 			{
