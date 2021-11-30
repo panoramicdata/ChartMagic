@@ -177,18 +177,20 @@ public class ChartSpecification
 		chart.ChartArea.InnerPlot.StrokeStyle = InnerPlotBorderLineDashStyle;
 
 		// XAxis
-		chart.ChartArea.XAxis.FillColor = XAxisBackgroundColor;
 		chart.ChartArea.XAxis.XPositionPercent = InnerPlotXPositionPercent;
 		chart.ChartArea.XAxis.YPositionPercent = 0;
 		chart.ChartArea.XAxis.WidthPercent = InnerPlotWidthPercent;
 		chart.ChartArea.XAxis.HeightPercent = InnerPlotYPositionPercent;
+		chart.ChartArea.XAxis.FillColor = XAxisBackgroundColor;
+		chart.ChartArea.XAxis.FontSize = XAxisFontSize;
 
 		// YAxis
-		chart.ChartArea.YAxis.FillColor = YAxisBackgroundColor;
 		chart.ChartArea.YAxis.XPositionPercent = 0;
 		chart.ChartArea.YAxis.YPositionPercent = InnerPlotYPositionPercent;
 		chart.ChartArea.YAxis.WidthPercent = InnerPlotXPositionPercent;
 		chart.ChartArea.YAxis.HeightPercent = InnerPlotHeightPercent;
+		chart.ChartArea.YAxis.FillColor = YAxisBackgroundColor;
+		chart.ChartArea.YAxis.FontSize = YAxisFontSize;
 
 		// Series
 		var seriesIndex = 0;
