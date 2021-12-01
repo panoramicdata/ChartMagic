@@ -177,13 +177,13 @@ internal class InternalSvgRenderer
 			{
 				switch (legend.Style)
 				{
-					case LegendStyle.Column:
+					case LegendStyle.Row:
 						textXPositionPercent = 15 + 75 * (seriesIndex + 1) / (chart.Series.Count + 1);
 						textYPositionPercent = 50;
 						rectXPositionPercent = 10 + 75 * (seriesIndex + 1) / (chart.Series.Count + 1);
 						rectYPositionPercent = 48;
 						break;
-					case LegendStyle.Row:
+					case LegendStyle.Column:
 						textXPositionPercent = 30;
 						textYPositionPercent = 8 + 80 * (seriesIndex + 1) / (chart.Series.Count + 1);
 						rectXPositionPercent = 10;
