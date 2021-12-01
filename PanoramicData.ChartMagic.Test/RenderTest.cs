@@ -8,7 +8,7 @@ public class RenderTest
 	{
 		var chart = chartSpecification.ToChart();
 		using var fileStream = new FileStream(fileInfo.FullName, FileMode.Create, FileAccess.Write);
-		chart.SaveImage(fileStream, Enum.Parse<ChartImageFormat>(fileInfo.FullName.Split('.').Last(), true), 1920, 1080, true);
+		chart.SaveImage(fileStream, Enum.Parse<ChartImageFormat>(fileInfo.FullName.Split('.').Last(), true), 1280, 720, false);
 	}
 
 	protected static FileInfo GetTempFileName(ChartImageFormat chartImageFormat)
@@ -27,6 +27,7 @@ public class RenderTest
 		LegendBackgroundColor = Color.LightBlue,
 		LegendBorderColor = Color.Blue,
 		LegendBorderLineDashStyle = ChartDashStyle.DashDotDot,
+		LegendStyle = LegendStyle.Row,
 
 		InnerPlotBorderColor = Color.Gray,
 
@@ -40,38 +41,33 @@ public class RenderTest
 				Text = "Top Left",
 				XPositionPercent = 0,
 				YPositionPercent = 100,
-				WidthPercent = 20,
-				HeightPercent = 5,
 				VerticalAlignment = VerticalAlignment.Top,
 				HorizontalAlignment = HorizontalAlignment.Left,
-				FontColor = Color.White,
 				FillColor = Color.DarkGray,
 				StrokeColor = Color.White,
-				StrokeWidth = 2,
+				StrokeWidth = 2
 			},
 			new()
 			{
 				Text = "Middle Center",
 				XPositionPercent = 50,
 				YPositionPercent = 50,
-				WidthPercent = 10,
-				HeightPercent = 5,
 				VerticalAlignment = VerticalAlignment.Middle,
 				HorizontalAlignment = HorizontalAlignment.Center,
-				FontColor = Color.White,
 				FillColor = Color.DarkGray,
+				StrokeColor = Color.Red,
 			},
 			new()
 			{
 				Text = "Bottom Right",
-				XPositionPercent = 90,
+				XPositionPercent = 100,
 				YPositionPercent = 0,
 				VerticalAlignment = VerticalAlignment.Bottom,
 				HorizontalAlignment = HorizontalAlignment.Right,
-				WidthPercent = 20,
-				HeightPercent = 5,
-				FontColor = Color.White,
-				FillColor = Color.DarkGray
+				StrokeColor = Color.White,
+				FillColor = Color.DarkGray,
+				FontFamily = "Arial",
+				FontWeight = FontWeight.Bold
 			}
 		},
 

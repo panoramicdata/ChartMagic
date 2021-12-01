@@ -9,12 +9,11 @@ public class AnnotationSpec
 	public double YPositionPercent { get; set; }
 	public double XRadiusPixels { get; set; }
 	public double YRadiusPixels { get; set; }
-	public double WidthPercent { get; set; }
-	public double HeightPercent { get; set; }
 	public Color FillColor { get; set; } = Colors.Transparent;
 	public Color StrokeColor { get; set; } = Colors.Transparent;
 	public double StrokeWidth { get; set; } = 2;
 	public double FontSize { get; set; } = 20;
 	public ChartDashStyle StrokeStyle { get; set; }
-	public Color FontColor { get; set; }
+	public string? FontFamily { get; set; }
+	public FontWeight FontWeight { get; set; } = FontWeight.Inherit;
 }

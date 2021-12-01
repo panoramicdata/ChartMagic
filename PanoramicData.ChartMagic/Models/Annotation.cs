@@ -7,8 +7,8 @@ public class Annotation : ChartNamedElement
 	}
 
 	public string Text { get; set; } = string.Empty;
-	public HorizontalAlignment HorizontalAlignment { get; set; }
-	public VerticalAlignment VerticalAlignment { get; set; }
 
-	public Color FontColor { get; set; } = Color.Black;
+	public HorizontalAlignment HorizontalAlignment { get; set; } = HorizontalAlignment.Center;
+
+	public VerticalAlignment VerticalAlignment { get; set; } = VerticalAlignment.Middle;
 }

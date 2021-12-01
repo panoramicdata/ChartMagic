@@ -37,7 +37,7 @@ public class ChartSpecification
 	public ChartDashStyle InnerPlotBorderLineDashStyle { get; set; }
 
 	#region Legend
-	public LegendStyle LegendStyle { get; set; }
+	public LegendStyle LegendStyle { get; set; } = LegendStyle.Row;
 	public double LegendXPositionPercent { get; set; } = 65;
 	public double LegendYPositionPercent { get; set; } = 0;
 	public double LegendWidthPercent { get; set; } = 35;
@@ -239,8 +239,8 @@ public class ChartSpecification
 				YRadiusPixels = annotationSpec.YRadiusPixels,
 				FillColor = annotationSpec.FillColor,
 				FontSize = annotationSpec.FontSize,
-				HeightPercent = annotationSpec.HeightPercent,
-				WidthPercent = annotationSpec.WidthPercent,
+				FontWeight = annotationSpec.FontWeight,
+				FontFamily = annotationSpec.FontFamily,
 
 				// Annotation-specific
 				Text = annotationSpec.Text,

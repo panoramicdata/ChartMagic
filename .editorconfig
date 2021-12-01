@@ -111,5 +111,5 @@ dotnet_style_qualification_for_property = false:suggestion
 csharp_style_namespace_declarations=file_scoped:silent
 
 [*.{cs,vb}]
-tab_width=3
-indent_size=3
+tab_width=4
+indent_size=4
