@@ -191,7 +191,8 @@ internal class InternalSvgRenderer
 						break;
 					default:
 						throw new NotSupportedException($"Legend style {legend.Style} not supported.");
-				};
+				}
+
 				// Add legend series text
 				var seriesSymbolXmlNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
 				seriesSymbolXmlNode.SetAttribute("x", GetRelativePositionX(legend, rectXPositionPercent).ToString(CultureInfo.InvariantCulture));

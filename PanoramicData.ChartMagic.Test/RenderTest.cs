@@ -2,7 +2,7 @@
 
 public class RenderTest
 {
-	public const int ChartXCount = 20;
+	static readonly int ChartXCount = 20;
 
 	protected static void SaveFile(ChartSpecification chartSpecification, FileInfo fileInfo)
 	{
@@ -80,7 +80,7 @@ public class RenderTest
 		}
 	};
 
-	internal static SeriesSpecification RedSeriesSpecification = new()
+	internal static readonly SeriesSpecification RedSeriesSpecification = new()
 	{
 		StrokeColor = Color.Red,
 		ChartType = SeriesChartType.Line,
@@ -93,7 +93,7 @@ public class RenderTest
 		MarkerFillColor = Color.White
 	};
 
-	internal static SeriesSpecification GreenSeriesSpecification = new()
+	internal static readonly SeriesSpecification GreenSeriesSpecification = new()
 	{
 		StrokeColor = Color.Green,
 		FillColor = Color.DarkGreen,
@@ -105,7 +105,7 @@ public class RenderTest
 		MarkerStyle = MarkerStyle.Circle
 	};
 
-	internal static SeriesSpecification BlueSeriesSpecification = new()
+	internal static readonly SeriesSpecification BlueSeriesSpecification = new()
 	{
 		StrokeColor = Color.Blue,
 		StrokeStyle = ChartDashStyle.DashDotDot,
@@ -119,7 +119,7 @@ public class RenderTest
 		MarkerStyle = MarkerStyle.Circle
 	};
 
-	internal static SeriesSpecification VioletSeriesSpecification = new()
+	internal static readonly SeriesSpecification VioletSeriesSpecification = new()
 	{
 		StrokeColor = Color.Violet,
 		FillColor = Color.DarkViolet,
