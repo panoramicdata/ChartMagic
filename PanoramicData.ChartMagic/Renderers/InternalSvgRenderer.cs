@@ -247,7 +247,6 @@ internal class InternalSvgRenderer
 		var stackedColumnDictionary = new Dictionary<string, double>();
 		var stackedAreaDictionary = new Dictionary<string, double>();
 		var lastStackedColumnDictionary = new Dictionary<string, double>();
-		var lastStackedAreaDictionary = new Dictionary<string, double>();
 		var stackLines = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
 		stackLines.SetAttribute("id", "stackLines");
 		var seriesIndex = -1;
@@ -345,7 +344,7 @@ internal class InternalSvgRenderer
 				areaNode.SetStyle(series, applyStroke: false);
 				seriesNode.AppendChild(areaNode);
 				// Store lastStackedAreaDictionary
-				lastStackedAreaDictionary = new Dictionary<string, double>();
+				var lastStackedAreaDictionary = new Dictionary<string, double>();
 				foreach (var key in stackedAreaDictionary.Keys)
 				{
 					lastStackedAreaDictionary[key] = stackedAreaDictionary[key];
