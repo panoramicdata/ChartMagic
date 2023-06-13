@@ -2,7 +2,7 @@
 
 public abstract class ChartElement : ChartElementBase
 {
-	internal ChartElement(IChartElement parent) : base(parent)
+	protected ChartElement(IChartElement parent) : base(parent)
 	{
 	}
 
