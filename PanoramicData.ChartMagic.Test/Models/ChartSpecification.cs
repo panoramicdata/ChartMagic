@@ -11,8 +11,8 @@ public class ChartSpecification
 	public int ChartBorderWidth { get; set; } = 2;
 	public ChartDashStyle ChartBorderLineDashStyle { get; set; }
 
-	public double ChartAreaXPositionPercent { get; set; } = 0;
-	public double ChartAreaYPositionPercent { get; set; } = 0;
+	public double ChartAreaXPositionPercent { get; set; }
+	public double ChartAreaYPositionPercent { get; set; }
 	public double ChartAreaXRadiusPixels { get; set; } = 10;
 	public double ChartAreaYRadiusPixels { get; set; } = 10;
 	public double ChartAreaWidthPercent { get; set; } = 65;
@@ -39,7 +39,7 @@ public class ChartSpecification
 	#region Legend
 	public LegendStyle LegendStyle { get; set; } = LegendStyle.Row;
 	public double LegendXPositionPercent { get; set; } = 65;
-	public double LegendYPositionPercent { get; set; } = 0;
+	public double LegendYPositionPercent { get; set; }
 	public double LegendWidthPercent { get; set; } = 35;
 	public double LegendHeightPercent { get; set; } = 100;
 	public double LegendXRadiusPixels { get; set; } = 5;
