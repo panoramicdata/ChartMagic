@@ -200,7 +200,7 @@ internal class InternalSvgRenderer
 				seriesSymbolXmlNode.SetAttribute("fill", series.FillColor.ToHex());
 				seriesSymbolXmlNode.SetAttribute("stroke", series.StrokeColor.ToHex());
 				seriesSymbolXmlNode.SetAttribute("width", "4%");
-				seriesSymbolXmlNode.SetAttribute("height", series.ChartType switch { SeriesChartType.Line => "2%", _ => "4%" });
+				seriesSymbolXmlNode.SetAttribute("height", series.ChartType == SeriesChartType.Line ? "2%" : "4%");
 				legendXmlElement.AppendChild(seriesSymbolXmlNode);
 				legendXmlElement.AppendChild(
 					CreateTextNode(
@@ -301,6 +301,7 @@ internal class InternalSvgRenderer
 					yValue = (double)(yPointValue! + (previousYValue ?? 0));
 					stackDictionary[xValueString] = yValue;
 				}
+
 				else
 				{
 					yValue = yPointValue ?? 0;
@@ -331,32 +332,26 @@ internal class InternalSvgRenderer
 			}
 
 			// Fill Area
-			switch (series.ChartType)
+			if (series.ChartType == SeriesChartType.Area || series.ChartType == SeriesChartType.StackedArea)
 			{
-				case SeriesChartType.Area:
-				case SeriesChartType.StackedArea:
-					if (returnPathPoints.Count == 0)
-					{
-						returnPathPoints.Add(
-							new(
-								innerPlotWidth,
-								innerPlotHeight
-							)
-						);
-					}
-					areaStringBuilder.Append(string.Join("", returnPathPoints.AsEnumerable().Reverse().Select(p => $"L{p.Item1} {p.Item2}")));
-					areaStringBuilder.Append('Z');
-					areaNode.SetAttribute("d", areaStringBuilder.ToString());
-					areaNode.SetStyle(series, applyStroke: false);
-					seriesNode.AppendChild(areaNode);
-					// Store lastStackedAreaDictionary
-					lastStackedAreaDictionary = new();
-					foreach (var key in stackedAreaDictionary.Keys)
-					{
-						lastStackedAreaDictionary[key] = stackedAreaDictionary[key];
-					}
-					break;
+				if (returnPathPoints.Count == 0)
+				{
+					returnPathPoints.Add(new Tuple<double, double>(innerPlotWidth, innerPlotHeight));
+				}
+
+				areaStringBuilder.Append(string.Join("", returnPathPoints.AsEnumerable().Reverse().Select(p => $"L{p.Item1} {p.Item2}")));
+				areaStringBuilder.Append('Z');
+				areaNode.SetAttribute("d", areaStringBuilder.ToString());
+				areaNode.SetStyle(series, applyStroke: false);
+				seriesNode.AppendChild(areaNode);
+				// Store lastStackedAreaDictionary
+				lastStackedAreaDictionary = new Dictionary<string, double>();
+				foreach (var key in stackedAreaDictionary.Keys)
+				{
+					lastStackedAreaDictionary[key] = stackedAreaDictionary[key];
+				}
 			}
+
 
 			// Line
 			switch (series.ChartType)
@@ -372,6 +367,7 @@ internal class InternalSvgRenderer
 					{
 						seriesNode.AppendChild(markerNode);
 					}
+
 					break;
 				case SeriesChartType.StackedArea:
 					pathNode.SetAttribute("d", pathStringBuilder.ToString());
@@ -382,6 +378,7 @@ internal class InternalSvgRenderer
 					{
 						stackLines.AppendChild(markerNode);
 					}
+
 					break;
 			}
 
@@ -410,6 +407,7 @@ internal class InternalSvgRenderer
 		{
 			groupNode.SetAttribute("transform", $"translate({translation})");
 		}
+
 		var rectNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
 		rectNode.SetAttribute("width", (_widthPixels * element.GetCanvasWidthPercent() / 100).ToString(CultureInfo.InvariantCulture));
 		rectNode.SetAttribute("height", (_heightPixels * element.GetCanvasHeightPercent() / 100).ToString(CultureInfo.InvariantCulture));
@@ -417,10 +415,12 @@ internal class InternalSvgRenderer
 		{
 			rectNode.SetAttribute("rx", element.XRadiusPixels.ToString(CultureInfo.InvariantCulture));
 		}
+
 		if (element.YRadiusPixels != 0)
 		{
 			rectNode.SetAttribute("ry", element.YRadiusPixels.ToString(CultureInfo.InvariantCulture));
 		}
+
 		rectNode.SetStyle(element);
 		groupNode.AppendChild(rectNode);
 
