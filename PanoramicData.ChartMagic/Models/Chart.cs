@@ -24,12 +24,18 @@ public class Chart : RootChartElement
 
 	public AnnotationCollection Annotations { get; }
 
-	public void SaveImage(Stream stream, ChartImageFormat chartImageFormat, int widthPixels, int heightPixels, bool debug = false)
+	// If there is no debug parameter
+	public void SaveImage(Stream stream, ChartImageFormat chartImageFormat, int widthPixels, int heightPixels)
+	{
+		SaveImage(stream, chartImageFormat, widthPixels, heightPixels, false);
+	}
+
+	public void SaveImage(Stream stream, ChartImageFormat chartImageFormat, int widthPixels, int heightPixels, bool debug)
 	{
 		if (chartImageFormat == ChartImageFormat.Svg)
 		{
 			new InternalSvgRenderer(widthPixels, heightPixels, debug)
-			 .SaveImage(stream, this);
+				.SaveImage(stream, this);
 			return;
 		}
 
@@ -47,22 +53,16 @@ public class Chart : RootChartElement
 			var svgDocument = SvgDocument.Open(svgTempFileInfo.FullName);
 			svgDocument.ShapeRendering = SvgShapeRendering.Auto;
 
-			// Is the output EMF (vector)?
 			if (chartImageFormat == ChartImageFormat.Emf)
 			{
-				// Yes.
 				using var bufferGraphics = Graphics.FromHwndInternal(IntPtr.Zero);
 				using var metafile = new Metafile(stream, bufferGraphics.GetHdc());
 				using var graphics = Graphics.FromImage(metafile);
 				svgDocument.Draw(graphics);
 				return;
 			}
-			// No. Output as a bitmap
 
-			var bmp = svgDocument.Draw(
-				widthPixels,
-				heightPixels
-				);
+			var bmp = svgDocument.Draw(widthPixels, heightPixels);
 			switch (chartImageFormat)
 			{
 				case ChartImageFormat.Png:
@@ -89,4 +89,5 @@ public class Chart : RootChartElement
 			svgTempFileInfo.Delete();
 		}
 	}
+
 }
