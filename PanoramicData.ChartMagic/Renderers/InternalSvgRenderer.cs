@@ -33,8 +33,7 @@ internal class InternalSvgRenderer
 
 		PlotAxes(
 			chart,
-			chartAreaNode,
-			axisHandlerResult);
+			chartAreaNode);
 
 		PlotLegends(
 			chart,
@@ -221,7 +220,7 @@ internal class InternalSvgRenderer
 		}
 	}
 
-	private void PlotAxes(Chart chart, XmlElement chartAreaNode, AxisHandlerResult axisHandlerResult)
+	private void PlotAxes(Chart chart, XmlElement chartAreaNode)
 	{
 		// X Axis
 		var xAxisNode = GetGroup(chart.ChartArea.XAxis, "xAxis");
