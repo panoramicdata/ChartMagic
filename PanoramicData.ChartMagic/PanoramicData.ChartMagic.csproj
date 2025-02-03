@@ -7,7 +7,7 @@
 		<PackageTags>ChartMagic</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<!--<PackageIcon>ReportMagicCircle.png</PackageIcon>-->
-		<!--<PackageProjectUrl>https://reportmagic.net/help/rest_api</PackageProjectUrl>-->
+		<PackageProjectUrl>https://github.com/panoramicdata/ChartMagic</PackageProjectUrl>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<Description>ChartMagic</Description>
 		<EnableNETAnalyzers>true</EnableNETAnalyzers>
