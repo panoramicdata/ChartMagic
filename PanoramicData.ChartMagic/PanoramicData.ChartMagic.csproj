@@ -18,7 +18,8 @@
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<Copyright>Copyright © Panoramic Data Limited 2025</Copyright>
 		<PackageReleaseNotes>
-			Updated to .NET 9.0
+			Updated to .NET 9.0.
+			Removed the dependency on GDI+, for cross-platform support.
 		</PackageReleaseNotes>
 		<IncludeSymbols>true</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
