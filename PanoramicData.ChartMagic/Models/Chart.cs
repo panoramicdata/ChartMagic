@@ -1,4 +1,7 @@
-﻿namespace PanoramicData.ChartMagic.Models;
+﻿using SkiaSharp;
+using Svg.Skia;
+
+namespace PanoramicData.ChartMagic.Models;
 
 public class Chart : RootChartElement
 {
@@ -26,68 +29,50 @@ public class Chart : RootChartElement
 
 	// If there is no debug parameter
 	public void SaveImage(Stream stream, ChartImageFormat chartImageFormat, int widthPixels, int heightPixels)
-	{
-		SaveImage(stream, chartImageFormat, widthPixels, heightPixels, false);
-	}
+		=> SaveImage(stream, chartImageFormat, widthPixels, heightPixels, false);
 
-	public void SaveImage(Stream stream, ChartImageFormat chartImageFormat, int widthPixels, int heightPixels, bool debug)
+	public void SaveImage(Stream stream, ChartImageFormat format, int width, int height, bool debug = false)
 	{
-		if (chartImageFormat == ChartImageFormat.Svg)
+		if (format == ChartImageFormat.Svg)
 		{
-			new InternalSvgRenderer(widthPixels, heightPixels, debug)
+			new InternalSvgRenderer(width, height, debug)
 				.SaveImage(stream, this);
 			return;
 		}
 
-		var tempFileInfo = new FileInfo(Path.GetTempFileName());
-		var svgTempFileInfo = new FileInfo(tempFileInfo.FullName + ".svg");
-		File.Move(tempFileInfo.FullName, svgTempFileInfo.FullName);
-		try
-		{
-			using (var svgFileStream = new FileStream(svgTempFileInfo.FullName, FileMode.Create, FileAccess.Write))
-			{
-				new InternalSvgRenderer(widthPixels, heightPixels, debug)
-					.SaveImage(svgFileStream, this);
-				svgFileStream.Flush();
-			}
-			var svgDocument = SvgDocument.Open(svgTempFileInfo.FullName);
-			svgDocument.ShapeRendering = SvgShapeRendering.Auto;
+		using var svgStream = new MemoryStream();
+		new InternalSvgRenderer(width, height, debug)
+			.SaveImage(svgStream, this);
+		svgStream.Position = 0;
 
-			if (chartImageFormat == ChartImageFormat.Emf)
-			{
-				using var bufferGraphics = Graphics.FromHwndInternal(IntPtr.Zero);
-				using var metafile = new Metafile(stream, bufferGraphics.GetHdc());
-				using var graphics = Graphics.FromImage(metafile);
-				svgDocument.Draw(graphics);
-				return;
-			}
+		using var surface = SKSurface.Create(new SKImageInfo(width, height));
+		var canvas = surface.Canvas;
+		canvas.Clear(SKColors.White);
 
-			var bmp = svgDocument.Draw(widthPixels, heightPixels);
-			switch (chartImageFormat)
-			{
-				case ChartImageFormat.Png:
-					bmp.Save(stream, ImageFormat.Png);
-					break;
-				case ChartImageFormat.Jpeg:
-					bmp.Save(stream, ImageFormat.Jpeg);
-					break;
-				case ChartImageFormat.Bmp:
-					bmp.Save(stream, ImageFormat.Bmp);
-					break;
-				case ChartImageFormat.Tiff:
-					bmp.Save(stream, ImageFormat.Tiff);
-					break;
-				case ChartImageFormat.Gif:
-					bmp.Save(stream, ImageFormat.Gif);
-					break;
-				default:
-					throw new NotSupportedException();
-			}
-		}
-		finally
+		using var skSvg = new SKSvg();
+		skSvg.Load(svgStream);
+		if (skSvg.Picture is null)
 		{
-			svgTempFileInfo.Delete();
+			throw new InvalidOperationException("SVG picture is null.");
 		}
+
+		skSvg.Picture.Draw(SKColors.Transparent, width, height, canvas);
+
+		using var image = surface.Snapshot();
+
+		var skFormat = format switch
+		{
+			ChartImageFormat.Png => SKEncodedImageFormat.Png,
+			ChartImageFormat.Jpeg => SKEncodedImageFormat.Jpeg,
+			ChartImageFormat.Bmp => SKEncodedImageFormat.Bmp,
+			ChartImageFormat.Gif => SKEncodedImageFormat.Gif,
+			ChartImageFormat.Tiff => throw new NotSupportedException("TIFF is not supported."),
+			ChartImageFormat.Emf => throw new NotSupportedException("EMF is Windows-only."),
+			_ => throw new NotSupportedException($"Unsupported format: {format}")
+		};
+
+		using var encoded = image.Encode(skFormat, quality: 100);
+		encoded.SaveTo(stream);
 	}
 
 }

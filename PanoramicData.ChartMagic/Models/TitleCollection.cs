@@ -1,8 +1,5 @@
 ﻿namespace PanoramicData.ChartMagic.Models;
 
-public class TitleCollection : ChartNamedElementCollection<Title>
+public class TitleCollection(IChartElement parent, IList<Title> list) : ChartNamedElementCollection<Title>(parent, list)
 {
-	public TitleCollection(IChartElement parent, IList<Title> list) : base(parent, list)
-	{
-	}
 }

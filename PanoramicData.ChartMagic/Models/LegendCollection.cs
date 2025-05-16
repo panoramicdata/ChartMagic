@@ -1,8 +1,5 @@
 ﻿namespace PanoramicData.ChartMagic.Models;
 
-public class LegendCollection : ChartNamedElementCollection<Legend>
+public class LegendCollection(IChartElement parent, IList<Legend> list) : ChartNamedElementCollection<Legend>(parent, list)
 {
-	public LegendCollection(IChartElement parent, IList<Legend> list) : base(parent, list)
-	{
-	}
 }

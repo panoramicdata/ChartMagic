@@ -1,11 +1,9 @@
-﻿namespace PanoramicData.ChartMagic.Models;
+﻿using System.Drawing;
 
-public abstract class ChartElement : ChartElementBase
+namespace PanoramicData.ChartMagic.Models;
+
+public abstract class ChartElement(IChartElement parent) : ChartElementBase(parent)
 {
-	protected ChartElement(IChartElement parent) : base(parent)
-	{
-	}
-
 	public double XPositionPercent { get; set; }
 
 	public double YPositionPercent { get; set; }

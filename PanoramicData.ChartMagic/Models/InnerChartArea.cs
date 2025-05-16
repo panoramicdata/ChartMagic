@@ -1,8 +1,5 @@
 ﻿namespace PanoramicData.ChartMagic.Models;
 
-public class InnerChartArea : ChartNamedElement
+public class InnerChartArea(IChartElement parent, string name) : ChartNamedElement(parent, name)
 {
-	public InnerChartArea(IChartElement parent, string name) : base(parent, name)
-	{
-	}
 }

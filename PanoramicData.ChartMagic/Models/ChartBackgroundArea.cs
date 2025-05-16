@@ -1,8 +1,5 @@
 ﻿namespace PanoramicData.ChartMagic.Models;
 
-public class ChartBackgroundArea : ChartNamedElement
+public class ChartBackgroundArea(IChartElement parent, string name) : ChartNamedElement(parent, name)
 {
-	public ChartBackgroundArea(IChartElement parent, string name) : base(parent, name)
-	{
-	}
 }

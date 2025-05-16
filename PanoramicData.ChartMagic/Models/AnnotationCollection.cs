@@ -1,8 +1,5 @@
 ﻿namespace PanoramicData.ChartMagic.Models;
 
-public class AnnotationCollection : ChartNamedElementCollection<Annotation>
+public class AnnotationCollection(IChartElement parent, IList<Annotation> list) : ChartNamedElementCollection<Annotation>(parent, list)
 {
-	public AnnotationCollection(IChartElement parent, IList<Annotation> list) : base(parent, list)
-	{
-	}
 }

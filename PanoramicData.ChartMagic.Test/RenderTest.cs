@@ -1,8 +1,10 @@
-﻿namespace PanoramicData.ChartMagic.Test;
+﻿using System.Drawing;
+
+namespace PanoramicData.ChartMagic.Test;
 
 public class RenderTest
 {
-	static readonly int ChartXCount = 20;
+	readonly static int ChartXCount = 20;
 
 	protected static void SaveFile(ChartSpecification chartSpecification, FileInfo fileInfo)
 	{
@@ -80,7 +82,7 @@ public class RenderTest
 		]
 	};
 
-	internal static readonly SeriesSpecification RedSeriesSpecification = new()
+	internal readonly static SeriesSpecification RedSeriesSpecification = new()
 	{
 		StrokeColor = Color.Red,
 		ChartType = SeriesChartType.Line,
@@ -93,7 +95,7 @@ public class RenderTest
 		MarkerFillColor = Color.White
 	};
 
-	internal static readonly SeriesSpecification GreenSeriesSpecification = new()
+	internal readonly static SeriesSpecification GreenSeriesSpecification = new()
 	{
 		StrokeColor = Color.Green,
 		FillColor = Color.DarkGreen,
@@ -105,7 +107,7 @@ public class RenderTest
 		MarkerStyle = MarkerStyle.Circle
 	};
 
-	internal static readonly SeriesSpecification BlueSeriesSpecification = new()
+	internal readonly static SeriesSpecification BlueSeriesSpecification = new()
 	{
 		StrokeColor = Color.Blue,
 		StrokeStyle = ChartDashStyle.DashDotDot,
@@ -119,7 +121,7 @@ public class RenderTest
 		MarkerStyle = MarkerStyle.Circle
 	};
 
-	internal static readonly SeriesSpecification VioletSeriesSpecification = new()
+	internal readonly static SeriesSpecification VioletSeriesSpecification = new()
 	{
 		StrokeColor = Color.Violet,
 		FillColor = Color.DarkViolet,

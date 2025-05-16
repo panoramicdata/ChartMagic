@@ -3,13 +3,9 @@ namespace PanoramicData.ChartMagic.Test;
 public class FormatTests : RenderTest
 {
 	[Theory]
-	[InlineData(ChartImageFormat.Bmp)]
-	[InlineData(ChartImageFormat.Emf)]
-	[InlineData(ChartImageFormat.Gif)]
 	[InlineData(ChartImageFormat.Jpeg)]
 	[InlineData(ChartImageFormat.Png)]
 	[InlineData(ChartImageFormat.Svg)]
-	[InlineData(ChartImageFormat.Tiff)]
 	public void EachFormat_Succeeds(ChartImageFormat chartImageFormat)
 	{
 		var fileInfo = GetTempFileName(chartImageFormat);
@@ -17,6 +13,10 @@ public class FormatTests : RenderTest
 		{
 			SaveFile(BasicChartSpecification, fileInfo);
 			fileInfo.Exists.Should().BeTrue();
+		}
+		catch (Exception ex)
+		{
+			throw new Exception($"Failed to save file {fileInfo.FullName} with format {chartImageFormat}", ex);
 		}
 		finally
 		{

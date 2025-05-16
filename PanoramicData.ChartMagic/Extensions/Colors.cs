@@ -1,4 +1,6 @@
-﻿namespace PanoramicData.ChartMagic.Extensions;
+﻿using System.Drawing;
+
+namespace PanoramicData.ChartMagic.Extensions;
 
 public static class Colors
 {

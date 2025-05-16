@@ -1,4 +1,6 @@
-﻿namespace PanoramicData.ChartMagic.Test.Models;
+﻿using System.Drawing;
+
+namespace PanoramicData.ChartMagic.Test.Models;
 
 public class SeriesSpecification
 {

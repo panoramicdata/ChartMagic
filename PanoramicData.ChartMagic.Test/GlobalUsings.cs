@@ -4,7 +4,6 @@ global using PanoramicData.ChartMagic.Models;
 global using PanoramicData.ChartMagic.Test.Models;
 global using System;
 global using System.Collections.Generic;
-global using System.Drawing;
 global using System.IO;
 global using System.Linq;
 global using Xunit;

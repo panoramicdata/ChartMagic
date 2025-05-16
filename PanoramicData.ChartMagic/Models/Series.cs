@@ -1,11 +1,9 @@
-﻿namespace PanoramicData.ChartMagic.Models;
+﻿using System.Drawing;
 
-public class Series : ChartNamedElement
+namespace PanoramicData.ChartMagic.Models;
+
+public class Series(ChartElement parent, string name) : ChartNamedElement(parent, name)
 {
-	public Series(ChartElement parent, string name) : base(parent, name)
-	{
-	}
-
 	public List<ChartPoint> Points { get; set; } = [];
 	public SeriesChartType ChartType { get; set; }
 	public bool IsXValueIndexed { get; set; }

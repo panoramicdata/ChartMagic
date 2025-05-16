@@ -1,19 +1,10 @@
-﻿namespace PanoramicData.ChartMagic.Renderers;
+﻿using System.Drawing;
 
-internal class InternalSvgRenderer
+namespace PanoramicData.ChartMagic.Renderers;
+
+internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug)
 {
-	private readonly XmlDocument _xmlDocument;
-	private readonly int _widthPixels;
-	private readonly int _heightPixels;
-	private readonly bool _debug;
-
-	public InternalSvgRenderer(int widthPixels, int heightPixels, bool debug)
-	{
-		_xmlDocument = new XmlDocument();
-		_widthPixels = widthPixels;
-		_heightPixels = heightPixels;
-		_debug = debug;
-	}
+	private readonly XmlDocument _xmlDocument = new();
 
 	internal void SaveImage(Stream stream, Chart chart)
 	{
@@ -67,8 +58,8 @@ internal class InternalSvgRenderer
 		svg.SetAttribute("xmlns", "http://www.w3.org/2000/svg");
 		svg.SetAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 		_xmlDocument.AppendChild(svg);
-		svg.SetAttribute("width", _widthPixels.ToString(CultureInfo.InvariantCulture));
-		svg.SetAttribute("height", _heightPixels.ToString(CultureInfo.InvariantCulture));
+		svg.SetAttribute("width", widthPixels.ToString(CultureInfo.InvariantCulture));
+		svg.SetAttribute("height", heightPixels.ToString(CultureInfo.InvariantCulture));
 
 		// Always define a defs node
 		defs = _xmlDocument.CreateElement(string.Empty, "defs", string.Empty);
@@ -153,9 +144,9 @@ internal class InternalSvgRenderer
 	}
 
 	private double GetRelativePositionY(ChartNamedElement chartNamedElement, double yPositionPercent)
-		=> (_heightPixels * ((100 - yPositionPercent * chartNamedElement.GetCanvasHeightPercent() / 100)) / 100);
+		=> (heightPixels * ((100 - yPositionPercent * chartNamedElement.GetCanvasHeightPercent() / 100)) / 100);
 	private double GetRelativePositionX(ChartNamedElement chartNamedElement, double xPositionPercent)
-		=> (_widthPixels * xPositionPercent * chartNamedElement.GetCanvasWidthPercent() / 100 / 100);
+		=> (widthPixels * xPositionPercent * chartNamedElement.GetCanvasWidthPercent() / 100 / 100);
 
 	private void PlotLegends(Chart chart, XmlElement chartBackgroundAreaNode)
 	{
@@ -241,8 +232,8 @@ internal class InternalSvgRenderer
 		var yAxisDisplayEnd = chart.ChartArea.YAxis.Max ?? axisHandlerResult.MaxY ?? 0;
 		var yAxisDisplayRange = yAxisDisplayEnd - yAxisDisplayStart;
 
-		var innerPlotHeight = _heightPixels * chart.ChartArea.InnerPlot.GetCanvasHeightPercent() / 100;
-		var innerPlotWidth = _widthPixels * chart.ChartArea.InnerPlot.GetCanvasWidthPercent() / 100;
+		var innerPlotHeight = heightPixels * chart.ChartArea.InnerPlot.GetCanvasHeightPercent() / 100;
+		var innerPlotWidth = widthPixels * chart.ChartArea.InnerPlot.GetCanvasWidthPercent() / 100;
 		var stackedColumnDictionary = new Dictionary<string, double>();
 		var stackedAreaDictionary = new Dictionary<string, double>();
 		var lastStackedColumnDictionary = new Dictionary<string, double>();
@@ -400,25 +391,25 @@ internal class InternalSvgRenderer
 	}
 
 	private string? GetXPosition(double xPositionPercent)
-		=> Math.Round(_widthPixels * xPositionPercent / 100, 2).ToString(CultureInfo.InvariantCulture);
+		=> Math.Round(widthPixels * xPositionPercent / 100, 2).ToString(CultureInfo.InvariantCulture);
 
 	private string? GetYPosition(double yPositionPercent)
-		=> Math.Round(_heightPixels * (100 - yPositionPercent) / 100, 2).ToString(CultureInfo.InvariantCulture);
+		=> Math.Round(heightPixels * (100 - yPositionPercent) / 100, 2).ToString(CultureInfo.InvariantCulture);
 
 	private XmlElement GetGroup(ChartNamedElement element, string id)
 	{
 		var groupNode = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
 		groupNode.SetAttribute("id", id);
 		var inverseYPositionPercent = element.GetCanvasYLocationPercent() + element.GetCanvasHeightPercent();
-		var translation = $"{_widthPixels * element.GetCanvasXLocationPercent() / 100},{_heightPixels * (100 - (inverseYPositionPercent)) / 100}";
+		var translation = $"{widthPixels * element.GetCanvasXLocationPercent() / 100},{heightPixels * (100 - (inverseYPositionPercent)) / 100}";
 		if (translation != "0,0")
 		{
 			groupNode.SetAttribute("transform", $"translate({translation})");
 		}
 
 		var rectNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
-		rectNode.SetAttribute("width", (_widthPixels * element.GetCanvasWidthPercent() / 100).ToString(CultureInfo.InvariantCulture));
-		rectNode.SetAttribute("height", (_heightPixels * element.GetCanvasHeightPercent() / 100).ToString(CultureInfo.InvariantCulture));
+		rectNode.SetAttribute("width", (widthPixels * element.GetCanvasWidthPercent() / 100).ToString(CultureInfo.InvariantCulture));
+		rectNode.SetAttribute("height", (heightPixels * element.GetCanvasHeightPercent() / 100).ToString(CultureInfo.InvariantCulture));
 		if (element.XRadiusPixels != 0)
 		{
 			rectNode.SetAttribute("rx", element.XRadiusPixels.ToString(CultureInfo.InvariantCulture));
@@ -432,7 +423,7 @@ internal class InternalSvgRenderer
 		rectNode.SetStyle(element);
 		groupNode.AppendChild(rectNode);
 
-		if (_debug)
+		if (debug)
 		{
 			var debugTextNode = _xmlDocument.CreateElement(string.Empty, "text", string.Empty);
 			debugTextNode.SetAttribute("alignment-baseline", "hanging");

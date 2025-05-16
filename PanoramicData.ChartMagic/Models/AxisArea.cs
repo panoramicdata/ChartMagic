@@ -1,11 +1,7 @@
 ﻿namespace PanoramicData.ChartMagic.Models;
 
-public class AxisArea : ChartNamedElement
+public class AxisArea(IChartElement parent, string name) : ChartNamedElement(parent, name)
 {
-	public AxisArea(IChartElement parent, string name) : base(parent, name)
-	{
-	}
-
 	public AxisAlignment Alignment { get; set; }
 	public IntervalAutoMode XAxisIntervalAutoMode { get; set; }
 	public DateTimeIntervalType IntervalType { get; set; }
