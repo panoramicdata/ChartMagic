@@ -2,7 +2,7 @@
 
 public class SeriesSpecification
 {
-	public List<ChartPoint> Points { get; set; } = new();
+	public List<ChartPoint> Points { get; set; } = [];
 	public SeriesChartType ChartType { get; set; }
 	public bool IsXValueIndexed { get; set; }
 	public Color FillColor { get; set; } = Colors.Transparent;

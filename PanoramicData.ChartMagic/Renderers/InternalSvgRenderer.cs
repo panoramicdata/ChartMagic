@@ -349,7 +349,7 @@ internal class InternalSvgRenderer
 					areaNode.SetStyle(series, applyStroke: false);
 					seriesNode.AppendChild(areaNode);
 					// Store lastStackedAreaDictionary
-					lastStackedAreaDictionary = new();
+					lastStackedAreaDictionary = [];
 					foreach (var key in stackedAreaDictionary.Keys)
 					{
 						lastStackedAreaDictionary[key] = stackedAreaDictionary[key];

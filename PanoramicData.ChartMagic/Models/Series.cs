@@ -6,7 +6,7 @@ public class Series : ChartNamedElement
 	{
 	}
 
-	public List<ChartPoint> Points { get; set; } = new();
+	public List<ChartPoint> Points { get; set; } = [];
 	public SeriesChartType ChartType { get; set; }
 	public bool IsXValueIndexed { get; set; }
 	public string? LabelText { get; set; }

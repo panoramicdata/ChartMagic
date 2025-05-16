@@ -6,10 +6,10 @@ public class Chart : RootChartElement
 	{
 		ChartBackgroundArea = new(this, "Chart Background Area");
 		ChartArea = new(ChartBackgroundArea, "Chart Area");
-		Legends = new(ChartBackgroundArea, new List<Legend>());
-		Series = new(ChartBackgroundArea, new List<Series>());
-		Titles = new(ChartBackgroundArea, new List<Title>());
-		Annotations = new(ChartBackgroundArea, new List<Annotation>());
+		Legends = new(ChartBackgroundArea, []);
+		Series = new(ChartBackgroundArea, []);
+		Titles = new(ChartBackgroundArea, []);
+		Annotations = new(ChartBackgroundArea, []);
 	}
 
 	public ChartBackgroundArea ChartBackgroundArea { get; set; }

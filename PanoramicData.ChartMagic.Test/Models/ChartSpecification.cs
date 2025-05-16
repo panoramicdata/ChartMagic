@@ -2,7 +2,7 @@
 
 public class ChartSpecification
 {
-	public List<SeriesSpecification> SeriesList { get; set; } = new();
+	public List<SeriesSpecification> SeriesList { get; set; } = [];
 
 	public object? DoughnutRadius { get; set; }
 
@@ -52,13 +52,13 @@ public class ChartSpecification
 	#endregion
 
 
-	public List<string> Labels { get; set; } = new();
+	public List<string> Labels { get; set; } = [];
 	public double? LabelFontSize { get; set; }
 	public Color? LabelColor { get; set; }
 	public Color LabelBackgroundColor { get; set; } = Colors.Transparent;
 
-	public List<string> Palette { get; set; } = new();
-	public List<AnnotationSpec> AnnotationList { get; set; } = new();
+	public List<string> Palette { get; set; } = [];
+	public List<AnnotationSpec> AnnotationList { get; set; } = [];
 	public string? PieLabelStyle { get; set; }
 	public Color PieLineColor { get; set; } = Color.Black;
 	public int PieStartAngleDegrees { get; set; }

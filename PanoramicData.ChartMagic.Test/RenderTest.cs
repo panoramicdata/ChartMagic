@@ -34,8 +34,8 @@ public class RenderTest
 		XAxisBackgroundColor = Color.Pink,
 		YAxisBackgroundColor = Color.Purple,
 
-		AnnotationList = new()
-		{
+		AnnotationList =
+		[
 			new()
 			{
 				Text = "Top Left",
@@ -69,15 +69,15 @@ public class RenderTest
 				FontFamily = "Arial",
 				FontWeight = FontWeight.Bold
 			}
-		},
+		],
 
-		SeriesList = new List<SeriesSpecification>
-		{
+		SeriesList =
+		[
 			RedSeriesSpecification,
 			GreenSeriesSpecification,
 			BlueSeriesSpecification,
 			VioletSeriesSpecification
-		}
+		]
 	};
 
 	internal static SeriesSpecification RedSeriesSpecification = new()
