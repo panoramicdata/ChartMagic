@@ -2,7 +2,7 @@
 
 public abstract class RootChartElement : ChartElementBase
 {
-	internal RootChartElement() : base()
+	protected RootChartElement() : base()
 	{
 	}
 }

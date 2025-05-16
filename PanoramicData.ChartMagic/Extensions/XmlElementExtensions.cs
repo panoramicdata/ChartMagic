@@ -24,6 +24,7 @@ internal static class XmlElementExtensions
 			{
 				style.Add($"stroke-opacity:{(element.StrokeColor.A / 255f).ToString("F2", CultureInfo.InvariantCulture)}");
 			}
+
 			switch (element.StrokeStyle)
 			{
 				case ChartDashStyle.Dash:
@@ -39,15 +40,17 @@ internal static class XmlElementExtensions
 					style.Add("stroke-dasharray:5,2");
 					break;
 			}
-			switch (element.StrokeLineCapStyle)
+
+			if(element.StrokeLineCapStyle == StrokeLineCapStyle.Square)
 			{
-				case StrokeLineCapStyle.Square:
-					style.Add("stroke-linecap:square");
-					break;
-				case StrokeLineCapStyle.Round:
-					style.Add("stroke-linecap:round");
-					break;
+				style.Add("stroke-linecap:square");
 			}
+
+			else if(element.StrokeLineCapStyle == StrokeLineCapStyle.Round)
+			{
+				style.Add("stroke-linecap:round");
+			}
+
 			switch (element.StrokeLineJoinStyle)
 			{
 				case StrokeLineJoinStyle.Arcs:
@@ -63,8 +66,10 @@ internal static class XmlElementExtensions
 					style.Add("stroke-linejoin:round");
 					break;
 			}
+
 			style.Add($"stroke-width:{element.StrokeWidth.ToString(CultureInfo.InvariantCulture)}");
 		}
+
 		xmlElement.SetAttribute("style", string.Join(";", style));
 	}
 }

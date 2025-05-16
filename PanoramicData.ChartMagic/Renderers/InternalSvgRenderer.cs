@@ -33,8 +33,7 @@ internal class InternalSvgRenderer
 
 		PlotAxes(
 			chart,
-			chartAreaNode,
-			axisHandlerResult);
+			chartAreaNode);
 
 		PlotLegends(
 			chart,
@@ -191,7 +190,8 @@ internal class InternalSvgRenderer
 						break;
 					default:
 						throw new NotSupportedException($"Legend style {legend.Style} not supported.");
-				};
+				}
+
 				// Add legend series text
 				var seriesSymbolXmlNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
 				seriesSymbolXmlNode.SetAttribute("x", GetRelativePositionX(legend, rectXPositionPercent).ToString(CultureInfo.InvariantCulture));
@@ -199,7 +199,7 @@ internal class InternalSvgRenderer
 				seriesSymbolXmlNode.SetAttribute("fill", series.FillColor.ToHex());
 				seriesSymbolXmlNode.SetAttribute("stroke", series.StrokeColor.ToHex());
 				seriesSymbolXmlNode.SetAttribute("width", "4%");
-				seriesSymbolXmlNode.SetAttribute("height", series.ChartType switch { SeriesChartType.Line => "2%", _ => "4%" });
+				seriesSymbolXmlNode.SetAttribute("height", series.ChartType == SeriesChartType.Line ? "2%" : "4%");
 				legendXmlElement.AppendChild(seriesSymbolXmlNode);
 				legendXmlElement.AppendChild(
 					CreateTextNode(
@@ -220,7 +220,7 @@ internal class InternalSvgRenderer
 		}
 	}
 
-	private void PlotAxes(Chart chart, XmlElement chartAreaNode, AxisHandlerResult axisHandlerResult)
+	private void PlotAxes(Chart chart, XmlElement chartAreaNode)
 	{
 		// X Axis
 		var xAxisNode = GetGroup(chart.ChartArea.XAxis, "xAxis");
@@ -246,7 +246,6 @@ internal class InternalSvgRenderer
 		var stackedColumnDictionary = new Dictionary<string, double>();
 		var stackedAreaDictionary = new Dictionary<string, double>();
 		var lastStackedColumnDictionary = new Dictionary<string, double>();
-		var lastStackedAreaDictionary = new Dictionary<string, double>();
 		var stackLines = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
 		stackLines.SetAttribute("id", "stackLines");
 		var seriesIndex = -1;
@@ -300,6 +299,7 @@ internal class InternalSvgRenderer
 					yValue = (double)(yPointValue! + (previousYValue ?? 0));
 					stackDictionary[xValueString] = yValue;
 				}
+
 				else
 				{
 					yValue = yPointValue ?? 0;
@@ -343,19 +343,23 @@ internal class InternalSvgRenderer
 							)
 						);
 					}
+
 					areaStringBuilder.Append(string.Join("", returnPathPoints.AsEnumerable().Reverse().Select(p => $"L{p.Item1} {p.Item2}")));
 					areaStringBuilder.Append('Z');
 					areaNode.SetAttribute("d", areaStringBuilder.ToString());
 					areaNode.SetStyle(series, applyStroke: false);
 					seriesNode.AppendChild(areaNode);
+
 					// Store lastStackedAreaDictionary
-					lastStackedAreaDictionary = [];
+					lastStackedColumnDictionary = [];
 					foreach (var key in stackedAreaDictionary.Keys)
 					{
-						lastStackedAreaDictionary[key] = stackedAreaDictionary[key];
+						lastStackedColumnDictionary[key] = stackedAreaDictionary[key];
 					}
+
 					break;
 			}
+
 
 			// Line
 			switch (series.ChartType)
@@ -371,6 +375,7 @@ internal class InternalSvgRenderer
 					{
 						seriesNode.AppendChild(markerNode);
 					}
+
 					break;
 				case SeriesChartType.StackedArea:
 					pathNode.SetAttribute("d", pathStringBuilder.ToString());
@@ -381,6 +386,7 @@ internal class InternalSvgRenderer
 					{
 						stackLines.AppendChild(markerNode);
 					}
+
 					break;
 			}
 
@@ -409,6 +415,7 @@ internal class InternalSvgRenderer
 		{
 			groupNode.SetAttribute("transform", $"translate({translation})");
 		}
+
 		var rectNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
 		rectNode.SetAttribute("width", (_widthPixels * element.GetCanvasWidthPercent() / 100).ToString(CultureInfo.InvariantCulture));
 		rectNode.SetAttribute("height", (_heightPixels * element.GetCanvasHeightPercent() / 100).ToString(CultureInfo.InvariantCulture));
@@ -416,10 +423,12 @@ internal class InternalSvgRenderer
 		{
 			rectNode.SetAttribute("rx", element.XRadiusPixels.ToString(CultureInfo.InvariantCulture));
 		}
+
 		if (element.YRadiusPixels != 0)
 		{
 			rectNode.SetAttribute("ry", element.YRadiusPixels.ToString(CultureInfo.InvariantCulture));
 		}
+
 		rectNode.SetStyle(element);
 		groupNode.AppendChild(rectNode);
 
