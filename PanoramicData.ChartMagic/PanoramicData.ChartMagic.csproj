@@ -4,19 +4,31 @@
 		<TargetFramework>net9.0</TargetFramework>
 		<LangVersion>latest</LangVersion>
 		<Nullable>enable</Nullable>
-		<PackageTags>ChartMagic</PackageTags>
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<!--<PackageIcon>ReportMagicCircle.png</PackageIcon>-->
-		<PackageProjectUrl>https://github.com/panoramicdata/ChartMagic</PackageProjectUrl>
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<Description>ChartMagic</Description>
-		<EnableNETAnalyzers>true</EnableNETAnalyzers>
 		<Company>Panoramic Data Limited</Company>
-		<Copyright>Panoramic Data Limited 2021</Copyright>
+		<Authors>Panoramic Data Limited</Authors>
+		<Product>ChartMagic</Product>
+		<Description>ChartMagic: A .NET 9 library for advanced chart rendering and manipulation.</Description>
+		<PackageTags>ChartMagic;chart;graphics;svg;rendering;visualization</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageProjectUrl>https://github.com/panoramicdata/ChartMagic</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/panoramicdata/ChartMagic</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageIcon>Panoramic Data.png</PackageIcon>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<Copyright>Copyright © Panoramic Data Limited 2025</Copyright>
 		<PackageReleaseNotes>
-			Initial release
+			Updated to .NET 9.0
 		</PackageReleaseNotes>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="LICENSE" Pack="true" PackagePath="" />
+		<None Include="README.md" Pack="true" PackagePath="" />
+		<None Include="Panoramic Data.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Nerdbank.GitVersioning" Version="3.7.115">
