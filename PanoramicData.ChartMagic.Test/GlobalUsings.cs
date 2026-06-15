@@ -1,4 +1,4 @@
-﻿global using FluentAssertions;
+﻿global using AwesomeAssertions;
 global using PanoramicData.ChartMagic.Extensions;
 global using PanoramicData.ChartMagic.Models;
 global using PanoramicData.ChartMagic.Test.Models;

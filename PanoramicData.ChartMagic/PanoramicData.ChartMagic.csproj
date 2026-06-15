@@ -1,45 +1,45 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
-		<LangVersion>latest</LangVersion>
-		<Nullable>enable</Nullable>
-		<Company>Panoramic Data Limited</Company>
-		<Authors>Panoramic Data Limited</Authors>
-		<Product>ChartMagic</Product>
-		<Description>ChartMagic: A .NET 9 library for advanced chart rendering and manipulation.</Description>
-		<PackageTags>ChartMagic;chart;graphics;svg;rendering;visualization</PackageTags>
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageProjectUrl>https://github.com/panoramicdata/ChartMagic</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/panoramicdata/ChartMagic</RepositoryUrl>
-		<RepositoryType>git</RepositoryType>
-		<PackageIcon>Panoramic Data.png</PackageIcon>
-		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<Copyright>Copyright © Panoramic Data Limited 2025</Copyright>
-		<PackageReleaseNotes>
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <Company>Panoramic Data Limited</Company>
+    <Authors>Panoramic Data Limited</Authors>
+    <Product>ChartMagic</Product>
+    <Description>ChartMagic: A .NET 9 library for advanced chart rendering and manipulation.</Description>
+    <PackageTags>ChartMagic;chart;graphics;svg;rendering;visualization</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/panoramicdata/ChartMagic</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/panoramicdata/ChartMagic</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>Panoramic Data.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Copyright>Copyright © Panoramic Data Limited 2025</Copyright>
+    <PackageReleaseNotes>
 			Updated to .NET 9.0.
 			Removed the dependency on GDI+, for cross-platform support.
 		</PackageReleaseNotes>
-		<IncludeSymbols>true</IncludeSymbols>
-		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-	</PropertyGroup>
-
-	<ItemGroup>
-		<None Include="LICENSE" Pack="true" PackagePath="" />
-		<None Include="README.md" Pack="true" PackagePath="" />
-		<None Include="Panoramic Data.png" Pack="true" PackagePath="\" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<PackageReference Include="SkiaSharp" Version="3.119.0" />
-		<PackageReference Include="Svg.Skia" Version="3.0.2" />
-		<PackageReference Include="Nerdbank.GitVersioning" Version="3.7.115">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Svg" Version="3.4.7" />
-		<PackageReference Include="System.Drawing.Primitives" Version="4.3.0" />
-	</ItemGroup>
-
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>PanoramicData.ChartMagic</PackageId>
+    <NeutralResourcesLanguage>en</NeutralResourcesLanguage>
+    <NoWarn>$(NoWarn);CS1587;CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="LICENSE" Pack="true" PackagePath="" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="Panoramic Data.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="Svg.Skia" />
+    <PackageReference Include="Nerdbank.GitVersioning">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Svg" />
+  </ItemGroup>
 </Project>
