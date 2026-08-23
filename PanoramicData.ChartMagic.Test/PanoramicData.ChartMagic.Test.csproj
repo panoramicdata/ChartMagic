@@ -16,6 +16,11 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!-- Issue #27: the raster tests need libSkiaSharp at runtime. The Linux CI runner has
+         no system copy, so every raster test failed there - including the pre-existing
+         FormatTests(Jpeg). The library deliberately does not force native assets on
+         consumers, so the test project brings its own. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
