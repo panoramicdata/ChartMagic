@@ -1,3 +1,4 @@
+using PanoramicData.ChartMagic.Extensions;
 using PanoramicData.ChartMagic.Models;
 using System.Drawing;
 using System.Text;
@@ -29,6 +30,33 @@ public enum SampleStatus
 }
 
 /// <summary>
+/// The colours a chart needs in order to sit on a light or a dark page.
+/// </summary>
+/// <param name="AxisLine">Axis lines and tick marks.</param>
+/// <param name="AxisLabel">Tick labels, axis titles and legend text.</param>
+/// <param name="MajorGrid">Major gridlines.</param>
+/// <param name="MinorGrid">Minor gridlines.</param>
+/// <param name="Border">The chart border.</param>
+public record ChartTheme(Color AxisLine, Color AxisLabel, Color MajorGrid, Color MinorGrid, Color Border)
+{
+	/// <summary>For a light page.</summary>
+	public static ChartTheme Light { get; } = new(
+		AxisLine: Color.FromArgb(0x59, 0x59, 0x59),
+		AxisLabel: Color.FromArgb(0x33, 0x33, 0x33),
+		MajorGrid: Color.FromArgb(0xCC, 0xCC, 0xCC),
+		MinorGrid: Color.FromArgb(0xE8, 0xE8, 0xE8),
+		Border: Color.FromArgb(0xB0, 0xB0, 0xB0));
+
+	/// <summary>For a dark page.</summary>
+	public static ChartTheme Dark { get; } = new(
+		AxisLine: Color.FromArgb(0xB8, 0xBC, 0xC2),
+		AxisLabel: Color.FromArgb(0xE6, 0xE8, 0xEB),
+		MajorGrid: Color.FromArgb(0x4A, 0x4F, 0x57),
+		MinorGrid: Color.FromArgb(0x35, 0x39, 0x40),
+		Border: Color.FromArgb(0x5A, 0x60, 0x68));
+}
+
+/// <summary>
 /// The sample gallery, and the SVG rendering used to display it.
 /// </summary>
 public static class SampleCharts
@@ -37,15 +65,35 @@ public static class SampleCharts
 	private const int Height = 380;
 
 	/// <summary>
-	/// Renders a specification to an inline SVG string.
+	/// A deliberately translucent chart background: 20% grey, so the page shows through it.
+	/// </summary>
+	/// <remarks>
+	/// This is the demo's own check on issue #35. Element opacity used to be used for a
+	/// translucent fill, which faded the border along with it; a chart that is translucent
+	/// inside and cleanly framed outside can only be drawn once fill-opacity is used instead.
+	/// The container behind every chart is striped, so anything opaque is obvious at a glance.
+	/// </remarks>
+	private static readonly Color TranslucentBackground = Color.FromArgb(0x33, 0x77, 0x77, 0x77);
+
+	private static readonly string[] Days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+	/// <summary>
+	/// Renders a specification to an inline SVG string, in the colours of the given theme.
 	/// </summary>
 	/// <remarks>
 	/// SVG rather than PNG, because this runs in the browser under WebAssembly. The raster path
 	/// needs the SkiaSharp native library; the SVG path does not touch it, so the demo stays a
 	/// pure static site with no native assets to ship.
+	///
+	/// The colours are baked into the SVG rather than inherited from the page, so each sample is
+	/// rendered once per theme and the stylesheet shows whichever matches. A single render
+	/// cannot follow the reader's colour scheme, because the renderer writes concrete colours
+	/// into every attribute.
 	/// </remarks>
-	public static string ToSvg(ChartSpecification specification)
+	public static string ToSvg(ChartSpecification specification, ChartTheme theme)
 	{
+		Apply(specification, theme);
+
 		using var stream = new MemoryStream();
 		specification
 			.ToChart()
@@ -54,55 +102,100 @@ public static class SampleCharts
 		return Encoding.UTF8.GetString(stream.ToArray());
 	}
 
+	private static void Apply(ChartSpecification specification, ChartTheme theme)
+	{
+		specification.ChartBackgroundColor = TranslucentBackground;
+		specification.ChartBorderColor = theme.Border;
+		specification.ChartBorderWidth = 1;
+
+		specification.XAxisLineColor = theme.AxisLine;
+		specification.YAxisLineColor = theme.AxisLine;
+		specification.XAxisMajorGridColor = theme.MajorGrid;
+		specification.YAxisMajorGridColor = theme.MajorGrid;
+		specification.XAxisMinorGridColor = theme.MinorGrid;
+		specification.YAxisMinorGridColor = theme.MinorGrid;
+		specification.AxisLabelColor = theme.AxisLabel;
+		specification.LegendFontColor = theme.AxisLabel;
+
+		// The default 20px axis text is too large for a 720px-wide sample.
+		specification.XAxisFontSize = 12;
+		specification.YAxisFontSize = 12;
+		specification.LegendFontSize = 13;
+	}
+
 	/// <summary>
 	/// The gallery, ordered so that what works comes first and the gaps are visible below it.
 	/// </summary>
 	public static IReadOnlyList<ChartSample> All =>
 	[
 		new(
-			"Line with markers",
-			"A single line series with circle markers. The workhorse case, and the one that works today.",
+			"Column",
+			"Three column series, grouped side by side within each category, with the category "
+			+ "labels taken from the data and a value axis generated from the range. Issue #33.",
 			SampleStatus.Working,
-			Build(SeriesChartType.Line, markers: true)),
+			WithAxes(BuildMultiSeries(SeriesChartType.Column), "Day", "Percent")),
+
+		new(
+			"Stacked column",
+			"The same three series stacked. Each segment starts where the one below it ends, and "
+			+ "the axis is scaled to the stacked total rather than the largest single value.",
+			SampleStatus.Working,
+			WithAxes(BuildMultiSeries(SeriesChartType.StackedColumn), "Day", "Percent")),
+
+		new(
+			"Bar",
+			"Horizontal bars. The category axis moves to the left and the value axis along the "
+			+ "bottom, so the same specification reads sideways.",
+			SampleStatus.Working,
+			WithAxes(BuildMultiSeries(SeriesChartType.Bar), "Percent", "Day")),
+
+		new(
+			"Axis titles, gridlines and rotated labels",
+			"Axis titles on both axes, major and minor gridlines, and category labels rotated "
+			+ "45 degrees. All four were accepted and silently discarded before issue #31.",
+			SampleStatus.Working,
+			BuildWithAxisFurniture()),
+
+		new(
+			"Logarithmic Y axis",
+			"Values spanning four orders of magnitude. The axis is labelled in whole decades and "
+			+ "the small values are legible instead of being flattened against the floor.",
+			SampleStatus.Working,
+			BuildLogarithmic()),
+
+		new(
+			"Line with markers",
+			"A single line series with circle markers, over a translucent chart background - the "
+			+ "stripes behind it are the page, showing through.",
+			SampleStatus.Working,
+			WithAxes(Build(SeriesChartType.Line, markers: true), "Day", "Percent")),
 
 		new(
 			"Area",
 			"Area fill under a single series.",
 			SampleStatus.Working,
-			Build(SeriesChartType.Area)),
+			WithAxes(Build(SeriesChartType.Area), "Day", "Percent")),
 
 		new(
 			"Stacked area",
-			"Three series stacked. Renders correctly.",
+			"Three series stacked, each outlined and filled.",
 			SampleStatus.Working,
-			BuildMultiSeries(SeriesChartType.StackedArea)),
+			WithAxes(BuildMultiSeries(SeriesChartType.StackedArea), "Day", "Percent")),
 
 		new(
-			"Column",
-			"Three column series. Nothing is drawn: InternalSvgRenderer has no case for Column. "
-			+ "This is issue #33 and the single biggest gap for business reporting.",
+			"Hundred-percent stacked column",
+			"Deliberately still blank. Rendering these needs the value axis rescaled to 0-100 "
+			+ "per category, which is not wired up, and a chart showing plausible but wrong "
+			+ "proportions would be worse than one showing nothing. Issue #33.",
 			SampleStatus.NotImplemented,
-			BuildMultiSeries(SeriesChartType.Column)),
+			WithAxes(BuildMultiSeries(SeriesChartType.StackedColumn100), "Day", "Percent")),
 
 		new(
-			"Bar",
-			"Horizontal bars. Also unimplemented (#33).",
+			"Pie",
+			"One of the 17 chart types the enum still declares and the renderer has no case for. "
+			+ "Issue #33 tracks the remainder.",
 			SampleStatus.NotImplemented,
-			BuildMultiSeries(SeriesChartType.Bar)),
-
-		new(
-			"Axis titles and gridlines",
-			"A line series asking for axis titles, major gridlines and a rotated label angle. "
-			+ "The series draws; none of the axis furniture does. Issue #31.",
-			SampleStatus.Partial,
-			BuildWithAxisFurniture()),
-
-		new(
-			"Logarithmic Y axis",
-			"Values spanning three orders of magnitude with IsLogarithmic set. The flag is "
-			+ "accepted and ignored, so the small values are flattened against the axis. Issue #31.",
-			SampleStatus.Partial,
-			BuildLogarithmic())
+			BuildMultiSeries(SeriesChartType.Pie))
 	];
 
 	private static List<ChartPoint> Points(params double[] values)
@@ -110,16 +203,24 @@ public static class SampleCharts
 		var points = new List<ChartPoint>();
 		for (var i = 0; i < values.Length; i++)
 		{
-			points.Add(new ChartPoint(null, i + 1, values[i]));
+			// The label makes the axis categorical; the index positions it.
+			points.Add(new ChartPoint(Days[i % Days.Length], i, values[i]));
 		}
 
 		return points;
 	}
 
+	private static ChartSpecification WithAxes(ChartSpecification specification, string xTitle, string yTitle)
+	{
+		specification.XAxisTitle = xTitle;
+		specification.YAxisTitle = yTitle;
+		specification.YAxisMajorGridEnabled = true;
+		return specification;
+	}
+
 	private static ChartSpecification Build(SeriesChartType chartType, bool markers = false)
 		=> new()
 		{
-			ChartBackgroundColor = Color.White,
 			SeriesList =
 			[
 				new()
@@ -127,7 +228,7 @@ public static class SampleCharts
 					ChartType = chartType,
 					LegendText = "Utilisation",
 					StrokeColor = Color.SteelBlue,
-					FillColor = Color.LightSteelBlue,
+					FillColor = chartType == SeriesChartType.Line ? Colors.Transparent : Color.LightSteelBlue,
 					StrokeWidth = 3,
 					IsXValueIndexed = true,
 					MarkerStyle = markers ? MarkerStyle.Circle : MarkerStyle.None,
@@ -150,7 +251,7 @@ public static class SampleCharts
 			new double[] { 4, 6, 5, 7, 9, 8, 11 }
 		};
 
-		var specification = new ChartSpecification { ChartBackgroundColor = Color.White };
+		var specification = new ChartSpecification();
 		for (var i = 0; i < names.Length; i++)
 		{
 			specification.SeriesList.Add(new SeriesSpecification
@@ -165,17 +266,22 @@ public static class SampleCharts
 			});
 		}
 
+		// Stacked series read better as a solid block than as three outlined ones.
+		if (chartType == SeriesChartType.StackedArea)
+		{
+			specification.LegendStyle = LegendStyle.Column;
+		}
+
 		return specification;
 	}
 
 	private static ChartSpecification BuildWithAxisFurniture()
 	{
-		var specification = Build(SeriesChartType.Line, markers: true);
-		specification.XAxisTitle = "Day";
-		specification.YAxisTitle = "Percent";
-		specification.YAxisMajorGridEnabled = true;
+		var specification = WithAxes(Build(SeriesChartType.Line, markers: true), "Day", "Percent");
 		specification.XAxisMajorGridEnabled = true;
-		specification.XAxisLabelAngle = 45;
+		specification.YAxisMinorGridEnabled = true;
+		specification.XAxisLabelAngle = -45;
+		specification.LegendStyle = LegendStyle.Column;
 		return specification;
 	}
 
@@ -183,8 +289,12 @@ public static class SampleCharts
 	{
 		var specification = new ChartSpecification
 		{
-			ChartBackgroundColor = Color.White,
 			YAxisIsLogarithmic = true,
+			YAxisMajorGridEnabled = true,
+			YAxisMinorGridEnabled = true,
+			XAxisTitle = "Day",
+			YAxisTitle = "Requests",
+			UseYAxisShortLabels = true,
 			SeriesList =
 			[
 				new()
@@ -194,6 +304,10 @@ public static class SampleCharts
 					StrokeColor = Color.IndianRed,
 					StrokeWidth = 3,
 					IsXValueIndexed = true,
+					MarkerStyle = MarkerStyle.Circle,
+					MarkerFillColor = Color.White,
+					MarkerStrokeColor = Color.IndianRed,
+					MarkerSize = 4,
 					Points = Points(1, 9, 80, 700, 5000, 900, 40)
 				}
 			]

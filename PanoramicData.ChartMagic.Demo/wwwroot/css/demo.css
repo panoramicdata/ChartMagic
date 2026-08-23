@@ -1,21 +1,83 @@
+/*
+ * Colours live in tokens so that the dark palette is a swap rather than a second set of
+ * rules. The three states are: an explicit choice on the root element, and the default
+ * "system" setting, where only prefers-color-scheme separates light from dark.
+ */
+:root {
+	--page: #ffffff;
+	--ink: #1f2328;
+	--ink-muted: #3d444d;
+	--rule: #d1d9e0;
+	--panel: #f6f8fa;
+	--stripe: rgba(15, 23, 42, 0.05);
+	--working-bg: #dafbe1; --working-fg: #1a7f37;
+	--partial-bg: #fff8c5; --partial-fg: #7d4e00;
+	--missing-bg: #ffebe9; --missing-fg: #a40e26;
+	--ring-track: #e0e0e0;
+	--ring-fill: #1b6ec2;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--page: #0d1117;
+		--ink: #e6e8eb;
+		--ink-muted: #9198a1;
+		--rule: #3d444d;
+		--panel: #161b22;
+		--stripe: rgba(255, 255, 255, 0.06);
+		--working-bg: #1b3a24; --working-fg: #6fd48a;
+		--partial-bg: #3d2f04; --partial-fg: #e0c369;
+		--missing-bg: #46181c; --missing-fg: #ff9492;
+		--ring-track: #30363d;
+		--ring-fill: #4493f8;
+	}
+}
+
+:root[data-theme="dark"] {
+	--page: #0d1117;
+	--ink: #e6e8eb;
+	--ink-muted: #9198a1;
+	--rule: #3d444d;
+	--panel: #161b22;
+	--stripe: rgba(255, 255, 255, 0.06);
+	--working-bg: #1b3a24; --working-fg: #6fd48a;
+	--partial-bg: #3d2f04; --partial-fg: #e0c369;
+	--missing-bg: #46181c; --missing-fg: #ff9492;
+	--ring-track: #30363d;
+	--ring-fill: #4493f8;
+}
+
+/* Show only the render that matches the reader colour scheme. */
+.dark-only { display: none; }
+.light-only { display: block; }
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) .dark-only { display: block; }
+	:root:not([data-theme="light"]) .light-only { display: none; }
+}
+
+:root[data-theme="dark"] .dark-only { display: block; }
+:root[data-theme="dark"] .light-only { display: none; }
+
 body {
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 	margin: 0 auto;
 	padding: 2rem 1.5rem 4rem;
 	max-width: 60rem;
-	color: #1f2328;
+	color: var(--ink);
+	background: var(--page);
 	line-height: 1.5;
 }
 
 h1 { margin-bottom: 0.25rem; }
 
-.lead { font-size: 1.05rem; color: #3d444d; }
+.lead { font-size: 1.05rem; color: var(--ink-muted); }
 
 .status-key {
 	margin: 1.5rem 0 2rem;
 	padding: 0.75rem 1rem;
-	background: #f6f8fa;
-	border: 1px solid #d1d9e0;
+	background: var(--panel);
+	border: 1px solid var(--rule);
 	border-radius: 6px;
 	font-size: 0.9rem;
 }
@@ -26,7 +88,7 @@ h1 { margin-bottom: 0.25rem; }
 .sample {
 	margin: 2.5rem 0;
 	padding-top: 1.5rem;
-	border-top: 1px solid #d1d9e0;
+	border-top: 1px solid var(--rule);
 }
 
 .sample h2 {
@@ -37,7 +99,7 @@ h1 { margin-bottom: 0.25rem; }
 	margin-bottom: 0.35rem;
 }
 
-.notes { color: #3d444d; font-size: 0.92rem; margin-top: 0; }
+.notes { color: var(--ink-muted); font-size: 0.92rem; margin-top: 0; }
 
 .badge {
 	font-size: 0.72rem;
@@ -49,20 +111,30 @@ h1 { margin-bottom: 0.25rem; }
 	white-space: nowrap;
 }
 
-.badge.working { background: #dafbe1; color: #1a7f37; }
-.badge.partial { background: #fff8c5; color: #7d4e00; }
-.badge.missing { background: #ffebe9; color: #a40e26; }
+.badge.working { background: var(--working-bg); color: var(--working-fg); }
+.badge.partial { background: var(--partial-bg); color: var(--partial-fg); }
+.badge.missing { background: var(--missing-bg); color: var(--missing-fg); }
 
-/* The chart is an inline SVG with its own intrinsic size; keep it inside the column. */
+/*
+ * The chart is an inline SVG with its own intrinsic size; keep it inside the column.
+ *
+ * The stripes are the point: every chart is drawn on a translucent background, so if the
+ * stripes are visible through it the fill is genuinely translucent and its border is still
+ * solid. An opaque fill, or a border faded along with the fill, shows up immediately.
+ */
 .chart {
-	border: 1px solid #d1d9e0;
+	border: 1px solid var(--rule);
 	border-radius: 6px;
-	background: #fff;
+	background: repeating-linear-gradient(
+		45deg,
+		var(--stripe) 0 8px,
+		transparent 8px 16px);
 	overflow-x: auto;
 	padding: 0.5rem;
 }
 
-.chart svg { display: block; max-width: 100%; height: auto; }
+/* Fill the column: the SVG carries a viewBox, so it scales rather than crops. */
+.chart svg { display: block; width: 100%; height: auto; }
 
 /*
  * Styles the markup the Blazor template puts in index.html: the boot progress ring and the
@@ -83,14 +155,14 @@ h1 { margin-bottom: 0.25rem; }
 
 .loading-progress circle {
 	fill: none;
-	stroke: #e0e0e0;
+	stroke: var(--ring-track);
 	stroke-width: 0.6rem;
 	transform-origin: 50% 50%;
 	transform: rotate(-90deg);
 }
 
 .loading-progress circle:last-child {
-	stroke: #1b6ec2;
+	stroke: var(--ring-fill);
 	stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8) 500%;
 	transition: stroke-dasharray 0.05s ease-in-out;
 }
@@ -115,9 +187,9 @@ h1 { margin-bottom: 0.25rem; }
 	right: 0;
 	z-index: 1000;
 	padding: 0.7rem 1.25rem 0.7rem 1.25rem;
-	background: #ffebe9;
-	border-top: 1px solid #a40e26;
-	color: #a40e26;
+	background: var(--missing-bg);
+	border-top: 1px solid var(--missing-fg);
+	color: var(--missing-fg);
 	box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
 }
 

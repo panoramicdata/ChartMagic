@@ -18,7 +18,8 @@ internal class AxisHandler(Chart chart)
 		result.MaxY = new[] {
 			chart.Series.Max(s => s.Points.Where(p => p.YValue is not null).Max(p => (double)p.YValue!)),
 			GetMaxY(SeriesChartType.StackedArea),
-			GetMaxY(SeriesChartType.StackedColumn)}
+			GetMaxY(SeriesChartType.StackedColumn),
+			GetMaxY(SeriesChartType.StackedBar)}
 			.Max();
 
 		result.MinX = chart.Series.Min(s => s.Points.Min(p => p.XValue!));

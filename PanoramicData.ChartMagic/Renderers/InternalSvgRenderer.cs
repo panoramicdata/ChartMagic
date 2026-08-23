@@ -1,10 +1,15 @@
-﻿using System.Drawing;
+using System.Drawing;
 
 namespace PanoramicData.ChartMagic.Renderers;
 
 internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug)
 {
 	private readonly XmlDocument _xmlDocument = new();
+
+	/// <summary>
+	/// Gap between a tick mark and the label that belongs to it, in pixels.
+	/// </summary>
+	private const double TickLabelGapPixels = 4;
 
 	internal void SaveImage(Stream stream, Chart chart)
 	{
@@ -16,23 +21,22 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			out var innerPlotNode,
 			out var axisHandlerResult);
 
-		PlotSeries(
+		var geometry = new PlotGeometry(
 			chart,
 			axisHandlerResult,
-			defs,
-			innerPlotNode);
+			widthPixels * chart.ChartArea.InnerPlot.GetCanvasWidthPercent() / 100,
+			heightPixels * chart.ChartArea.InnerPlot.GetCanvasHeightPercent() / 100);
 
-		PlotAxes(
-			chart,
-			chartAreaNode);
+		// Gridlines first, so that the series are drawn over them rather than under.
+		PlotGridlines(chart, geometry, innerPlotNode);
 
-		PlotLegends(
-			chart,
-			chartBackgroundAreaNode);
+		PlotSeries(chart, geometry, defs, innerPlotNode);
 
-		PlotAnnotations(
-			chart,
-			chartBackgroundAreaNode);
+		PlotAxes(chart, geometry, chartAreaNode);
+
+		PlotLegends(chart, chartBackgroundAreaNode);
+
+		PlotAnnotations(chart, chartBackgroundAreaNode);
 
 		// Issue #27: UTF-8, not UTF-16.
 		//
@@ -114,38 +118,51 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		foreach (var annotation in chart.Annotations)
 		{
 			var textNode = CreateTextNode(
-				chart.ChartBackgroundArea,
 				$"annotation{annotationIndex++}",
-				annotation.GetCanvasXLocationPercent(),
-				annotation.GetCanvasYLocationPercent(),
+				GetRelativePositionX(chart.ChartBackgroundArea, annotation.GetCanvasXLocationPercent()),
+				GetRelativePositionY(chart.ChartBackgroundArea, annotation.GetCanvasYLocationPercent()),
 				annotation.Text,
 				annotation.HorizontalAlignment,
 				annotation.VerticalAlignment,
 				annotation.FontWeight,
 				annotation.FontFamily,
+				annotation.FontSize,
 				annotation.StrokeColor,
 				annotation.FillColor);
 			chartBackgroundAreaNode.AppendChild(textNode);
 		}
 	}
 
+	/// <summary>
+	/// Creates a text node at an absolute position within its enclosing group.
+	/// </summary>
+	/// <remarks>
+	/// Issue #35: the stroke colour is now skipped when transparent. It used to be written
+	/// unconditionally, and because <c>ToHex</c> discards alpha a transparent colour became
+	/// <c>#000000</c> - a black outline around every label whether or not one was asked for.
+	/// The font size is emitted too; it was carried on every element and never used, so all
+	/// text rendered at the SVG default size regardless of what was set.
+	/// </remarks>
 	private XmlElement CreateTextNode(
-		ChartNamedElement chartNamedElement,
 		string id,
-		double xPositionPercent,
-		double yPositionPercent,
+		double x,
+		double y,
 		string text,
 		HorizontalAlignment horizontalAlignment,
 		VerticalAlignment verticalAlignment,
 		FontWeight fontWeight,
 		string? fontFamily,
+		double fontSize,
 		Color strokeColor,
-		Color fillColor
-		)
+		Color fillColor,
+		double rotationDegrees = 0)
 	{
+		var roundedX = Math.Round(x, 2);
+		var roundedY = Math.Round(y, 2);
+
 		var textNode = _xmlDocument.CreateElement(string.Empty, "text", string.Empty);
-		textNode.SetAttribute("x", GetRelativePositionX(chartNamedElement, xPositionPercent).ToString(CultureInfo.InvariantCulture));
-		textNode.SetAttribute("y", GetRelativePositionY(chartNamedElement, yPositionPercent).ToString(CultureInfo.InvariantCulture));
+		textNode.SetAttribute("x", roundedX.ToString(CultureInfo.InvariantCulture));
+		textNode.SetAttribute("y", roundedY.ToString(CultureInfo.InvariantCulture));
 		textNode.SetAttribute("id", id);
 		textNode.InnerText = text;
 		textNode.SetAttribute("text-anchor", horizontalAlignment switch
@@ -153,119 +170,507 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			HorizontalAlignment.Left => "start",
 			HorizontalAlignment.Center => "middle",
 			HorizontalAlignment.Right => "end",
-			_ => throw new NotSupportedException($"Unsupported HorizontalAlignment '{horizontalAlignment}'")
+			_ => throw new NotSupportedException($"Unsupported HorizontalAlignment {horizontalAlignment}.")
 		});
 		textNode.SetAttribute("alignment-baseline", verticalAlignment switch
 		{
 			VerticalAlignment.Top => "hanging",
 			VerticalAlignment.Middle => "middle",
 			VerticalAlignment.Bottom => "baseline",
-			_ => throw new NotSupportedException($"Unsupported VerticalAlignment '{verticalAlignment}'")
+			_ => throw new NotSupportedException($"Unsupported VerticalAlignment {verticalAlignment}.")
 		});
 		textNode.SetAttribute("font-weight", fontWeight.ToString().ToLowerInvariant());
-		textNode.SetAttribute("font-family", fontFamily);
-		textNode.SetAttribute("stroke", strokeColor.ToHex());
+		textNode.SetAttribute("font-size", fontSize.ToString(CultureInfo.InvariantCulture));
+		if (fontFamily is { Length: > 0 })
+		{
+			textNode.SetAttribute("font-family", fontFamily);
+		}
+
+		if (strokeColor != Colors.Transparent)
+		{
+			textNode.SetAttribute("stroke", strokeColor.ToHex());
+		}
+
 		textNode.SetAttribute("fill", fillColor.ToHex());
+
+		if (rotationDegrees != 0)
+		{
+			textNode.SetAttribute(
+				"transform",
+				FormattableString.Invariant($"rotate({rotationDegrees} {roundedX} {roundedY})"));
+		}
 
 		return textNode;
 	}
 
 	private double GetRelativePositionY(ChartNamedElement chartNamedElement, double yPositionPercent)
-		=> (heightPixels * ((100 - yPositionPercent * chartNamedElement.GetCanvasHeightPercent() / 100)) / 100);
-	private double GetRelativePositionX(ChartNamedElement chartNamedElement, double xPositionPercent)
-		=> (widthPixels * xPositionPercent * chartNamedElement.GetCanvasWidthPercent() / 100 / 100);
+		=> heightPixels * (100 - (yPositionPercent * chartNamedElement.GetCanvasHeightPercent() / 100)) / 100;
 
+	private double GetRelativePositionX(ChartNamedElement chartNamedElement, double xPositionPercent)
+		=> widthPixels * xPositionPercent * chartNamedElement.GetCanvasWidthPercent() / 100 / 100;
+
+	/// <summary>
+	/// Draws the legend: one swatch and label per series, inside the legend box.
+	/// </summary>
+	/// <remarks>
+	/// Issue #35: laid out in the legend's own pixel space. The previous version worked in
+	/// percentages and then passed them through a helper that scaled by the legend width a
+	/// second time, collapsing the spacing to a fraction of what was intended - which is why
+	/// three labels landed almost on top of one another. Swatch sizes were percentages of the
+	/// whole image rather than of the legend, so they drifted with the output size.
+	/// </remarks>
 	private void PlotLegends(Chart chart, XmlElement chartBackgroundAreaNode)
 	{
-		// Legends
-		if (chart.Legends.Count > 0)
+		if (chart.Legends.Count == 0 || chart.Series.Count == 0)
 		{
-			var legend = chart.Legends[0];
-			var legendXmlElement = GetGroup(legend, "legend");
-			chartBackgroundAreaNode.AppendChild(legendXmlElement);
+			return;
+		}
 
-			var seriesIndex = 0;
-			double
-				textXPositionPercent,
-				textYPositionPercent,
-				rectXPositionPercent,
-				rectYPositionPercent;
-			foreach (var series in chart.Series)
+		var legend = chart.Legends[0];
+		var legendXmlElement = GetGroup(legend, "legend");
+		chartBackgroundAreaNode.AppendChild(legendXmlElement);
+
+		var legendWidth = widthPixels * legend.GetCanvasWidthPercent() / 100;
+		var legendHeight = heightPixels * legend.GetCanvasHeightPercent() / 100;
+		var fontSize = legend.FontSize;
+		var swatchSize = Math.Round(fontSize * 0.8, 2);
+		var padding = Math.Round(fontSize * 0.5, 2);
+
+		var seriesIndex = 0;
+		foreach (var series in chart.Series)
+		{
+			double swatchX;
+			double swatchY;
+
+			switch (legend.Style)
 			{
-				switch (legend.Style)
-				{
-					case LegendStyle.Row:
-						textXPositionPercent = 15 + 75 * (seriesIndex + 1) / (chart.Series.Count + 1);
-						textYPositionPercent = 50;
-						rectXPositionPercent = 10 + 75 * (seriesIndex + 1) / (chart.Series.Count + 1);
-						rectYPositionPercent = 48;
+				case LegendStyle.Row:
+					{
+						// One slot per series across the legend width.
+						var slotWidth = (legendWidth - (2 * padding)) / chart.Series.Count;
+						swatchX = padding + (seriesIndex * slotWidth);
+						swatchY = Math.Round((legendHeight - swatchSize) / 2, 2);
 						break;
-					case LegendStyle.Column:
-						textXPositionPercent = 30;
-						textYPositionPercent = 8 + 80 * (seriesIndex + 1) / (chart.Series.Count + 1);
-						rectXPositionPercent = 10;
-						rectYPositionPercent = 10 + 80 * (seriesIndex + 1) / (chart.Series.Count + 1);
-						break;
-					default:
-						throw new NotSupportedException($"Legend style {legend.Style} not supported.");
-				}
+					}
 
-				// Add legend series text
-				var seriesSymbolXmlNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
-				seriesSymbolXmlNode.SetAttribute("x", GetRelativePositionX(legend, rectXPositionPercent).ToString(CultureInfo.InvariantCulture));
-				seriesSymbolXmlNode.SetAttribute("y", GetRelativePositionY(legend, rectYPositionPercent).ToString(CultureInfo.InvariantCulture));
-				seriesSymbolXmlNode.SetAttribute("fill", series.FillColor.ToHex());
-				seriesSymbolXmlNode.SetAttribute("stroke", series.StrokeColor.ToHex());
-				seriesSymbolXmlNode.SetAttribute("width", "4%");
-				seriesSymbolXmlNode.SetAttribute("height", series.ChartType == SeriesChartType.Line ? "2%" : "4%");
-				legendXmlElement.AppendChild(seriesSymbolXmlNode);
-				legendXmlElement.AppendChild(
-					CreateTextNode(
-						legend,
-						$"legendSeries{seriesIndex}Text",
-						textXPositionPercent,
-						textYPositionPercent,
-						series.Name,
-						HorizontalAlignment.Left,
-						VerticalAlignment.Middle,
-						legend.FontWeight,
-						legend.FontFamily,
-						legend.FontColor,
-						legend.FillColor)
-					);
-				seriesIndex++;
+				case LegendStyle.Column:
+					{
+						// One row per series, stacked from the top and centred as a block.
+						var lineHeight = fontSize * 1.6;
+						var blockHeight = lineHeight * chart.Series.Count;
+						var top = Math.Max(padding, (legendHeight - blockHeight) / 2);
+						swatchX = padding;
+						swatchY = Math.Round(top + (seriesIndex * lineHeight) + ((lineHeight - swatchSize) / 2), 2);
+						break;
+					}
+
+				default:
+					throw new NotSupportedException($"Legend style {legend.Style} is not supported.");
+			}
+
+			// A line series is represented by a bar rather than a block, so that the legend
+			// distinguishes a line from a filled area at a glance.
+			var isLine = series.ChartType
+				is SeriesChartType.Line
+				or SeriesChartType.FastLine
+				or SeriesChartType.Spline
+				or SeriesChartType.StepLine;
+			var swatchHeight = isLine ? Math.Max(2, Math.Round(swatchSize / 4, 2)) : swatchSize;
+			var swatchTop = isLine ? swatchY + ((swatchSize - swatchHeight) / 2) : swatchY;
+
+			// A line series carries its identity in its stroke, a filled series in its fill.
+			var swatchColor = isLine
+				? series.StrokeColor
+				: series.FillColor != Colors.Transparent ? series.FillColor : series.StrokeColor;
+
+			var swatchNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
+			swatchNode.SetAttribute("x", swatchX.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("y", swatchTop.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("width", swatchSize.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("height", swatchHeight.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("fill", swatchColor.ToHex());
+			if (swatchColor.A != 255)
+			{
+				swatchNode.SetAttribute(
+					"fill-opacity",
+					(swatchColor.A / 255f).ToString("F2", CultureInfo.InvariantCulture));
+			}
+
+			legendXmlElement.AppendChild(swatchNode);
+
+			legendXmlElement.AppendChild(
+				CreateTextNode(
+					$"legendSeries{seriesIndex}Text",
+					swatchX + swatchSize + (padding / 2),
+					swatchY + (swatchSize / 2),
+					series.LegendText is { Length: > 0 } ? series.LegendText : series.Name,
+					HorizontalAlignment.Left,
+					VerticalAlignment.Middle,
+					legend.FontWeight,
+					legend.FontFamily,
+					fontSize,
+					Colors.Transparent,
+					legend.FontColor));
+
+			seriesIndex++;
+		}
+	}
+
+	/// <summary>
+	/// Draws gridlines across the plot for whichever axes asked for them.
+	/// </summary>
+	/// <remarks>
+	/// Issue #31: gridlines belong to the axis whose values they mark, so the Y axis draws
+	/// horizontal lines and the X axis vertical ones.
+	/// </remarks>
+	private void PlotGridlines(Chart chart, PlotGeometry geometry, XmlElement innerPlotNode)
+	{
+		var xAxis = chart.ChartArea.XAxis;
+		var yAxis = chart.ChartArea.YAxis;
+
+		if (!yAxis.MajorGridEnabled && !yAxis.MinorGridEnabled && !xAxis.MajorGridEnabled && !xAxis.MinorGridEnabled)
+		{
+			return;
+		}
+
+		var gridNode = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
+		gridNode.SetAttribute("id", "gridlines");
+		innerPlotNode.AppendChild(gridNode);
+
+		// Minor lines before major, so a major line is drawn over a coincident minor one.
+		if (yAxis.MinorGridEnabled)
+		{
+			foreach (var value in MinorTicks(yAxis, geometry, isValueAxis: !geometry.IsHorizontalPlot))
+			{
+				var y = geometry.YToPixels(value);
+				gridNode.AppendChild(CreateLine(0, y, geometry.Width, y, yAxis.MinorGridColor, yAxis.GridWidth));
+			}
+		}
+
+		if (yAxis.MajorGridEnabled)
+		{
+			foreach (var value in YAxisTickValues(chart, geometry))
+			{
+				var y = geometry.IsHorizontalPlot ? geometry.CategoryToPixels(value) : geometry.YToPixels(value);
+				gridNode.AppendChild(CreateLine(0, y, geometry.Width, y, yAxis.MajorGridColor, yAxis.GridWidth));
+			}
+		}
+
+		if (xAxis.MinorGridEnabled)
+		{
+			foreach (var value in MinorTicks(xAxis, geometry, isValueAxis: geometry.IsHorizontalPlot))
+			{
+				var x = XAxisPixels(geometry, value);
+				gridNode.AppendChild(CreateLine(x, 0, x, geometry.Height, xAxis.MinorGridColor, xAxis.GridWidth));
+			}
+		}
+
+		if (xAxis.MajorGridEnabled)
+		{
+			foreach (var value in XAxisTickValues(chart, geometry))
+			{
+				var x = XAxisPixels(geometry, value);
+				gridNode.AppendChild(CreateLine(x, 0, x, geometry.Height, xAxis.MajorGridColor, xAxis.GridWidth));
 			}
 		}
 	}
 
-	private void PlotAxes(Chart chart, XmlElement chartAreaNode)
+	/// <summary>
+	/// Draws the axis strips: their backgrounds, then the axis line, ticks, labels and title.
+	/// </summary>
+	private void PlotAxes(Chart chart, PlotGeometry geometry, XmlElement chartAreaNode)
 	{
 		// X Axis
-		var xAxisNode = GetGroup(chart.ChartArea.XAxis, "xAxis");
+		var xAxis = chart.ChartArea.XAxis;
+		var xAxisNode = GetGroup(xAxis, "xAxis");
 		chartAreaNode.AppendChild(xAxisNode);
+		if (xAxis.IsEnabled && xAxis.LabelsEnabled)
+		{
+			DrawXAxis(chart, geometry, xAxis, xAxisNode);
+		}
 
 		// Y Axis
-		var yAxisNode = GetGroup(chart.ChartArea.YAxis, "yAxis");
+		var yAxis = chart.ChartArea.YAxis;
+		var yAxisNode = GetGroup(yAxis, "yAxis");
 		chartAreaNode.AppendChild(yAxisNode);
+		if (yAxis.IsEnabled && yAxis.LabelsEnabled)
+		{
+			DrawYAxis(chart, geometry, yAxis, yAxisNode);
+		}
 	}
 
-	private void PlotSeries(Chart chart, AxisHandlerResult axisHandlerResult, XmlElement defs, XmlElement innerPlotNode)
+	/// <summary>
+	/// The X axis strip sits directly beneath the plot and shares its width and horizontal
+	/// origin, so a local X coordinate in one is the same local X coordinate in the other, and
+	/// the strip top edge is the plot bottom edge.
+	/// </summary>
+	private void DrawXAxis(Chart chart, PlotGeometry geometry, AxisArea xAxis, XmlElement xAxisNode)
 	{
-		// Determine axis locations
-		var xAxisDisplayStart = chart.ChartArea.XAxis.Min ?? axisHandlerResult.MinX ?? 0;
-		var xAxisDisplayEnd = chart.ChartArea.XAxis.Max ?? axisHandlerResult.MaxX ?? 0;
-		var xAxisDisplayRange = xAxisDisplayEnd - xAxisDisplayStart;
-		var yAxisDisplayStart = chart.ChartArea.YAxis.Min ?? axisHandlerResult.MinY ?? 0;
-		var yAxisDisplayEnd = chart.ChartArea.YAxis.Max ?? axisHandlerResult.MaxY ?? 0;
-		var yAxisDisplayRange = yAxisDisplayEnd - yAxisDisplayStart;
+		var axisHeight = heightPixels * xAxis.GetCanvasHeightPercent() / 100;
 
-		var innerPlotHeight = heightPixels * chart.ChartArea.InnerPlot.GetCanvasHeightPercent() / 100;
-		var innerPlotWidth = widthPixels * chart.ChartArea.InnerPlot.GetCanvasWidthPercent() / 100;
+		xAxisNode.AppendChild(CreateLine(0, 0, geometry.Width, 0, xAxis.LineColor, xAxis.LineWidth));
+
+		var tickLength = xAxis.TickLengthPixels;
+		var labelY = tickLength + TickLabelGapPixels;
+		var isRotated = xAxis.LabelAngle != 0;
+
+		foreach (var value in XAxisTickValues(chart, geometry))
+		{
+			var x = XAxisPixels(geometry, value);
+			xAxisNode.AppendChild(CreateLine(x, 0, x, tickLength, xAxis.LineColor, xAxis.LineWidth));
+
+			var label = geometry.IsHorizontalPlot
+				? FormatAxisValue(value, xAxis)
+				: geometry.CategoryLabel(value) ?? FormatAxisValue(value, xAxis);
+
+			xAxisNode.AppendChild(
+				CreateTextNode(
+					FormattableString.Invariant($"xAxisLabel{x}"),
+					x,
+					labelY,
+					label,
+					// A rotated label reads better anchored at its end, so that it runs away
+					// from its tick rather than across it.
+					isRotated ? HorizontalAlignment.Right : HorizontalAlignment.Center,
+					VerticalAlignment.Top,
+					xAxis.FontWeight,
+					xAxis.FontFamily,
+					xAxis.FontSize,
+					Colors.Transparent,
+					xAxis.FontColor,
+					xAxis.LabelAngle));
+		}
+
+		if (xAxis.Title is { Length: > 0 })
+		{
+			xAxisNode.AppendChild(
+				CreateTextNode(
+					"xAxisTitle",
+					geometry.Width / 2,
+					// Held clear of the bottom edge: on the baseline exactly, the descenders fall
+					// outside the viewport and are clipped.
+					axisHeight - (xAxis.FontSize * 0.2),
+					xAxis.Title,
+					HorizontalAlignment.Center,
+					VerticalAlignment.Bottom,
+					FontWeight.Bold,
+					xAxis.FontFamily,
+					xAxis.FontSize,
+					Colors.Transparent,
+					xAxis.FontColor));
+		}
+	}
+
+	/// <summary>
+	/// The Y axis strip sits immediately left of the plot and shares its height, so the axis
+	/// line is drawn along the strip right-hand edge, which is the plot left edge.
+	/// </summary>
+	private void DrawYAxis(Chart chart, PlotGeometry geometry, AxisArea yAxis, XmlElement yAxisNode)
+	{
+		var axisWidth = widthPixels * yAxis.GetCanvasWidthPercent() / 100;
+
+		yAxisNode.AppendChild(CreateLine(axisWidth, 0, axisWidth, geometry.Height, yAxis.LineColor, yAxis.LineWidth));
+
+		var tickLength = yAxis.TickLengthPixels;
+		var labelX = axisWidth - tickLength - TickLabelGapPixels;
+
+		foreach (var value in YAxisTickValues(chart, geometry))
+		{
+			var y = geometry.IsHorizontalPlot ? geometry.CategoryToPixels(value) : geometry.YToPixels(value);
+			yAxisNode.AppendChild(
+				CreateLine(axisWidth - tickLength, y, axisWidth, y, yAxis.LineColor, yAxis.LineWidth));
+
+			var label = geometry.IsHorizontalPlot
+				? geometry.CategoryLabel(value) ?? FormatAxisValue(value, yAxis)
+				: FormatAxisValue(value, yAxis);
+
+			yAxisNode.AppendChild(
+				CreateTextNode(
+					FormattableString.Invariant($"yAxisLabel{y}"),
+					labelX,
+					y,
+					label,
+					HorizontalAlignment.Right,
+					VerticalAlignment.Middle,
+					yAxis.FontWeight,
+					yAxis.FontFamily,
+					yAxis.FontSize,
+					Colors.Transparent,
+					yAxis.FontColor,
+					yAxis.LabelAngle));
+		}
+
+		if (yAxis.Title is { Length: > 0 })
+		{
+			// Rotated a quarter turn anticlockwise and centred on the axis, as a Y axis title
+			// conventionally reads.
+			yAxisNode.AppendChild(
+				CreateTextNode(
+					"yAxisTitle",
+					yAxis.FontSize * 0.9,
+					geometry.Height / 2,
+					yAxis.Title,
+					HorizontalAlignment.Center,
+					VerticalAlignment.Top,
+					FontWeight.Bold,
+					yAxis.FontFamily,
+					yAxis.FontSize,
+					Colors.Transparent,
+					yAxis.FontColor,
+					-90));
+		}
+	}
+
+	private static double XAxisPixels(PlotGeometry geometry, double value)
+		=> geometry.IsHorizontalPlot
+			? geometry.ValueToPixels(value)
+			: geometry.IsCategorical ? geometry.CategoryToPixels(value) : geometry.XToPixels(value);
+
+	/// <summary>
+	/// The values the X axis is labelled at: one per category when the axis is categorical, the
+	/// value scale for a bar chart, and readable intervals across the range otherwise.
+	/// </summary>
+	private static IReadOnlyList<double> XAxisTickValues(Chart chart, PlotGeometry geometry)
+	{
+		if (geometry.IsHorizontalPlot)
+		{
+			return TickGenerator.Linear(
+				geometry.YDisplayStart,
+				geometry.YDisplayEnd,
+				chart.ChartArea.XAxis.Interval,
+				chart.ChartArea.XAxis.TargetTickCount);
+		}
+
+		return geometry.IsCategorical
+			? geometry.Categories
+			: TickGenerator.Linear(
+				geometry.XDisplayStart,
+				geometry.XDisplayEnd,
+				chart.ChartArea.XAxis.Interval,
+				chart.ChartArea.XAxis.TargetTickCount);
+	}
+
+	/// <summary>
+	/// The values the Y axis is labelled at.
+	/// </summary>
+	private static IReadOnlyList<double> YAxisTickValues(Chart chart, PlotGeometry geometry)
+	{
+		if (geometry.IsHorizontalPlot)
+		{
+			return geometry.Categories;
+		}
+
+		return geometry.YIsLogarithmic
+			? TickGenerator.Logarithmic(geometry.YLogMinimum, geometry.YLogMaximum, includeMinor: false)
+			: TickGenerator.Linear(
+				geometry.YDisplayStart,
+				geometry.YDisplayEnd,
+				chart.ChartArea.YAxis.Interval,
+				chart.ChartArea.YAxis.TargetTickCount);
+	}
+
+	/// <summary>
+	/// Minor gridline positions: the interval the caller gave, otherwise a subdivision of the
+	/// major interval, or the intermediate steps within each decade on a logarithmic axis.
+	/// </summary>
+	private static IReadOnlyList<double> MinorTicks(AxisArea axis, PlotGeometry geometry, bool isValueAxis)
+	{
+		if (!isValueAxis)
+		{
+			// Minor gridlines have no meaning on a category axis: there is nothing between one
+			// category and the next.
+			return [];
+		}
+
+		if (geometry.YIsLogarithmic)
+		{
+			return TickGenerator.Logarithmic(geometry.YLogMinimum, geometry.YLogMaximum, includeMinor: true);
+		}
+
+		var interval = axis.MinorGridInterval;
+		if (interval is not > 0)
+		{
+			// Five subdivisions of the target major spacing, which is a conventional
+			// minor-to-major ratio and keeps the count bounded.
+			interval = (geometry.YDisplayEnd - geometry.YDisplayStart) / Math.Max(axis.TargetTickCount, 1) / 5;
+		}
+
+		return TickGenerator.Linear(
+			geometry.YDisplayStart,
+			geometry.YDisplayEnd,
+			interval,
+			axis.TargetTickCount * 5);
+	}
+
+	/// <summary>
+	/// Formats an axis value, honouring an explicit format string and the short-label option.
+	/// </summary>
+	private static string FormatAxisValue(double value, AxisArea axis)
+	{
+		if (axis.LabelFormat is { Length: > 0 })
+		{
+			return value.ToString(axis.LabelFormat, CultureInfo.InvariantCulture);
+		}
+
+		if (axis.UseShortLabels)
+		{
+			var absolute = Math.Abs(value);
+			if (absolute >= 1_000_000_000)
+			{
+				return FormattableString.Invariant($"{value / 1_000_000_000:0.##}bn");
+			}
+
+			if (absolute >= 1_000_000)
+			{
+				return FormattableString.Invariant($"{value / 1_000_000:0.##}M");
+			}
+
+			if (absolute >= 1_000)
+			{
+				return FormattableString.Invariant($"{value / 1_000:0.##}k");
+			}
+		}
+
+		// Two decimal places at most, and none where the value does not need them.
+		return value.ToString("0.##", CultureInfo.InvariantCulture);
+	}
+
+	private XmlElement CreateLine(double x1, double y1, double x2, double y2, Color color, double width)
+	{
+		var lineNode = _xmlDocument.CreateElement(string.Empty, "line", string.Empty);
+		lineNode.SetAttribute("x1", Math.Round(x1, 2).ToString(CultureInfo.InvariantCulture));
+		lineNode.SetAttribute("y1", Math.Round(y1, 2).ToString(CultureInfo.InvariantCulture));
+		lineNode.SetAttribute("x2", Math.Round(x2, 2).ToString(CultureInfo.InvariantCulture));
+		lineNode.SetAttribute("y2", Math.Round(y2, 2).ToString(CultureInfo.InvariantCulture));
+		lineNode.SetAttribute("stroke", color.ToHex());
+		if (color.A != 255)
+		{
+			lineNode.SetAttribute(
+				"stroke-opacity",
+				(color.A / 255f).ToString("F2", CultureInfo.InvariantCulture));
+		}
+
+		lineNode.SetAttribute("stroke-width", width.ToString(CultureInfo.InvariantCulture));
+		return lineNode;
+	}
+
+	private void PlotSeries(Chart chart, PlotGeometry geometry, XmlElement defs, XmlElement innerPlotNode)
+	{
+		var innerPlotHeight = geometry.Height;
+		var innerPlotWidth = geometry.Width;
 		var stackedColumnDictionary = new Dictionary<string, double>();
 		var stackedAreaDictionary = new Dictionary<string, double>();
-		var lastStackedColumnDictionary = new Dictionary<string, double>();
 		var stackLines = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
 		stackLines.SetAttribute("id", "stackLines");
+
+		// Issue #33: a column or bar occupies a slot within its category band. Grouped series
+		// take one slot each; all stacked series share a single slot, because they stack on top
+		// of one another rather than standing side by side.
+		var bandedSeries = chart.Series.Where(s => PlotGeometry.IsBanded(s.ChartType)).ToList();
+		var groupedSeries = bandedSeries.Where(s => !PlotGeometry.IsStacked(s.ChartType)).ToList();
+		var hasStackedBanded = bandedSeries.Exists(s => PlotGeometry.IsStacked(s.ChartType));
+		var slotCount = Math.Max(1, groupedSeries.Count + (hasStackedBanded ? 1 : 0));
+
 		var seriesIndex = -1;
 		foreach (var series in chart.Series)
 		{
@@ -288,15 +693,27 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 				case MarkerStyle.None:
 					break;
 				default:
-					throw new NotSupportedException($"Marker type {series.MarkerStyle} not supported.");
+					throw new NotSupportedException($"Marker type {series.MarkerStyle} is not supported.");
 			}
 
 			var stackDictionary = series.ChartType switch
 			{
 				SeriesChartType.StackedColumn => stackedColumnDictionary,
+				SeriesChartType.StackedBar => stackedColumnDictionary,
 				SeriesChartType.StackedArea => stackedAreaDictionary,
 				_ => null
 			};
+
+			if (PlotGeometry.IsBanded(series.ChartType))
+			{
+				var slot = PlotGeometry.IsStacked(series.ChartType)
+					? groupedSeries.Count
+					: groupedSeries.IndexOf(series);
+
+				PlotBandedSeries(chart, geometry, series, seriesNode, stackDictionary, slot, slotCount);
+				innerPlotNode.AppendChild(seriesNode);
+				continue;
+			}
 
 			var pathNode = _xmlDocument.CreateElement(string.Empty, "path", string.Empty);
 			var areaNode = _xmlDocument.CreateElement(string.Empty, "path", string.Empty);
@@ -308,7 +725,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			foreach (var chartPoint in series.Points)
 			{
 				var xValue = chartPoint.XValue;
-				var xValueString = xValue.ToString() ?? string.Empty;
+				var xValueString = xValue.ToString(CultureInfo.InvariantCulture);
 				var yPointValue = chartPoint.YValue;
 				double yValue;
 				var previousYValue = stackDictionary is not null ? stackDictionary.TryGetValue(xValueString, out var stackedColumnValue) ? (double?)stackedColumnValue : null : null;
@@ -317,19 +734,18 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 					yValue = (double)(yPointValue! + (previousYValue ?? 0));
 					stackDictionary[xValueString] = yValue;
 				}
-
 				else
 				{
 					yValue = yPointValue ?? 0;
 				}
 
-				// simple left to right, equidistanced for now
-				var xPosition = Math.Round(innerPlotWidth * (xValue - xAxisDisplayStart) / xAxisDisplayRange, 2);
-				var yPosition = Math.Round(innerPlotHeight * (1 - ((yValue - yAxisDisplayStart) / yAxisDisplayRange)), 2);
+				var xPosition = geometry.IsCategorical
+					? geometry.CategoryToPixels(xValue)
+					: geometry.XToPixels(xValue);
+				var yPosition = geometry.YToPixels(yValue);
 				if (previousYValue is not null)
 				{
-					var previousYPosition = Math.Round(innerPlotHeight * (1 - (((double)previousYValue - yAxisDisplayStart) / yAxisDisplayRange)), 2);
-					returnPathPoints.Add(new Tuple<double, double>(xPosition, previousYPosition));
+					returnPathPoints.Add(new Tuple<double, double>(xPosition, geometry.YToPixels((double)previousYValue)));
 				}
 
 				// Letter - always M to start, afterwards L unless the previous value is null
@@ -368,16 +784,8 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 					areaNode.SetStyle(series, applyStroke: false);
 					seriesNode.AppendChild(areaNode);
 
-					// Store lastStackedAreaDictionary
-					lastStackedColumnDictionary = [];
-					foreach (var key in stackedAreaDictionary.Keys)
-					{
-						lastStackedColumnDictionary[key] = stackedAreaDictionary[key];
-					}
-
 					break;
 			}
-
 
 			// Line
 			switch (series.ChartType)
@@ -417,11 +825,81 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		}
 	}
 
-	private string? GetXPosition(double xPositionPercent)
-		=> Math.Round(widthPixels * xPositionPercent / 100, 2).ToString(CultureInfo.InvariantCulture);
+	/// <summary>
+	/// Draws one column or bar series: a rectangle per point, running from the value axis origin
+	/// to the value of the point, occupying its slot within the category band.
+	/// </summary>
+	/// <remarks>
+	/// Issue #33: <c>InternalSvgRenderer</c> had no case for any of these chart types, so a
+	/// column chart rendered its legend and nothing else - no exception, no empty-plot warning,
+	/// just a blank plot area beside a correct-looking legend.
+	/// </remarks>
+	private void PlotBandedSeries(
+		Chart chart,
+		PlotGeometry geometry,
+		Series series,
+		XmlElement seriesNode,
+		Dictionary<string, double>? stackDictionary,
+		int slot,
+		int slotCount)
+	{
+		var bandExtent = geometry.CategoryBandExtent;
+		var groupExtent = bandExtent * chart.ChartArea.ColumnBandFillFraction;
+		var slotExtent = groupExtent / slotCount;
+		var origin = geometry.ValueAxisOrigin;
+		var isHorizontal = PlotGeometry.IsHorizontal(series.ChartType);
 
-	private string? GetYPosition(double yPositionPercent)
-		=> Math.Round(heightPixels * (100 - yPositionPercent) / 100, 2).ToString(CultureInfo.InvariantCulture);
+		foreach (var chartPoint in series.Points)
+		{
+			if (chartPoint.YValue is null)
+			{
+				continue;
+			}
+
+			var key = chartPoint.XValue.ToString(CultureInfo.InvariantCulture);
+			double from;
+			double to;
+			if (stackDictionary is not null)
+			{
+				var previousTotal = stackDictionary.TryGetValue(key, out var runningTotal) ? runningTotal : 0;
+				var newTotal = previousTotal + chartPoint.YValue.Value;
+				stackDictionary[key] = newTotal;
+				from = geometry.ValueToPixels(previousTotal);
+				to = geometry.ValueToPixels(newTotal);
+			}
+			else
+			{
+				from = origin;
+				to = geometry.ValueToPixels(chartPoint.YValue.Value);
+			}
+
+			var slotStart = geometry.CategoryToPixels(chartPoint.XValue) - (groupExtent / 2) + (slot * slotExtent);
+
+			var rectNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
+			var near = Math.Round(Math.Min(from, to), 2).ToString(CultureInfo.InvariantCulture);
+			var extent = Math.Round(Math.Abs(to - from), 2).ToString(CultureInfo.InvariantCulture);
+			var across = Math.Round(slotStart, 2).ToString(CultureInfo.InvariantCulture);
+			var thickness = Math.Round(slotExtent, 2).ToString(CultureInfo.InvariantCulture);
+
+			if (isHorizontal)
+			{
+				rectNode.SetAttribute("x", near);
+				rectNode.SetAttribute("y", across);
+				rectNode.SetAttribute("width", extent);
+				rectNode.SetAttribute("height", thickness);
+			}
+			else
+			{
+				rectNode.SetAttribute("x", across);
+				rectNode.SetAttribute("y", near);
+				rectNode.SetAttribute("width", thickness);
+				rectNode.SetAttribute("height", extent);
+			}
+
+			rectNode.SetStyle(series);
+			seriesNode.AppendChild(rectNode);
+		}
+	}
 
 	private XmlElement GetGroup(ChartNamedElement element, string id)
 	{

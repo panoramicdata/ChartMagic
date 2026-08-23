@@ -110,7 +110,7 @@ public class ChartSpecification
 	public DateTimeIntervalType YAxisMinorGridIntervalType { get; set; }
 	public double? YAxisMinorGridInterval { get; set; }
 	public double YAxisFontSize { get; set; } = 20;
-	public string YAxisTitle { get; set; } = "Y Axis Title";
+	public string? YAxisTitle { get; set; }
 	public bool UseYAxisShortLabels { get; set; }
 	public IntervalAutoMode YAxisIntervalAutoMode { get; set; }
 	public DateTimeIntervalType YAxisIntervalType { get; set; }
@@ -118,6 +118,33 @@ public class ChartSpecification
 	public LabelAutoFitStyles YAxisLabelAutoFitStyle { get; set; }
 	public string? YAxisLabelFormat { get; set; }
 	public bool YAxisIsLogarithmic { get; set; }
+
+	/// <summary>Colour of the X axis line and its tick marks.</summary>
+	public Color XAxisLineColor { get; set; } = Color.FromArgb(0x59, 0x59, 0x59);
+
+	/// <summary>Colour of the Y axis line and its tick marks.</summary>
+	public Color YAxisLineColor { get; set; } = Color.FromArgb(0x59, 0x59, 0x59);
+
+	/// <summary>Colour of X axis major gridlines.</summary>
+	public Color XAxisMajorGridColor { get; set; } = Color.FromArgb(0xD9, 0xD9, 0xD9);
+
+	/// <summary>Colour of Y axis major gridlines.</summary>
+	public Color YAxisMajorGridColor { get; set; } = Color.FromArgb(0xD9, 0xD9, 0xD9);
+
+	/// <summary>Colour of X axis minor gridlines.</summary>
+	public Color XAxisMinorGridColor { get; set; } = Color.FromArgb(0xED, 0xED, 0xED);
+
+	/// <summary>Colour of Y axis minor gridlines.</summary>
+	public Color YAxisMinorGridColor { get; set; } = Color.FromArgb(0xED, 0xED, 0xED);
+
+	/// <summary>Colour of axis tick labels and titles.</summary>
+	public Color AxisLabelColor { get; set; } = Color.FromArgb(0x33, 0x33, 0x33);
+
+	/// <summary>Colour of legend label text.</summary>
+	public Color LegendFontColor { get; set; } = Color.FromArgb(0x33, 0x33, 0x33);
+
+	/// <summary>Fraction of a category band a group of columns occupies, 0 to 1.</summary>
+	public double ColumnBandFillFraction { get; set; } = 0.8;
 
 	public bool Enable3d { get; set; }
 	public int Inclination3dDegrees { get; set; }
@@ -169,6 +196,7 @@ public class ChartSpecification
 			StrokeStyle = LegendBorderLineDashStyle,
 			FontSize = LegendFontSize,
 			Style = LegendStyle,
+			FontColor = LegendFontColor,
 		};
 		chart.Legends.Add(legend);
 
@@ -196,22 +224,70 @@ public class ChartSpecification
 		chart.ChartArea.InnerPlot.StrokeColor = InnerPlotBorderColor;
 		chart.ChartArea.InnerPlot.StrokeWidth = InnerPlotBorderWidth;
 		chart.ChartArea.InnerPlot.StrokeStyle = InnerPlotBorderLineDashStyle;
+		chart.ChartArea.ColumnBandFillFraction = ColumnBandFillFraction;
 
 		// XAxis
+		//
+		// Issue #31: the geometry below was wired up, but none of the settings that decide what
+		// the axis actually says were - not the title, the label angle, the gridlines, the
+		// interval, the label format nor the logarithmic flag. A specification could set every
+		// one of them and reach a renderer that had never been told. Fixing the renderer alone
+		// would still have drawn nothing.
 		chart.ChartArea.XAxis.XPositionPercent = InnerPlotXPositionPercent;
 		chart.ChartArea.XAxis.YPositionPercent = 0;
 		chart.ChartArea.XAxis.WidthPercent = InnerPlotWidthPercent;
 		chart.ChartArea.XAxis.HeightPercent = InnerPlotYPositionPercent;
 		chart.ChartArea.XAxis.FillColor = XAxisBackgroundColor;
 		chart.ChartArea.XAxis.FontSize = XAxisFontSize;
+		chart.ChartArea.XAxis.FontColor = AxisLabelColor;
+		chart.ChartArea.XAxis.Title = XAxisTitle;
+		chart.ChartArea.XAxis.LabelAngle = XAxisLabelAngle;
+		chart.ChartArea.XAxis.LabelFormat = XAxisLabelFormat;
+		chart.ChartArea.XAxis.LabelAutoFitStyle = XAxisLabelAutoFitStyle;
+		chart.ChartArea.XAxis.IsAutoFit = XAxisIsAutoFit;
+		chart.ChartArea.XAxis.Interval = XAxisInterval;
+		chart.ChartArea.XAxis.IntervalType = XAxisIntervalType;
+		chart.ChartArea.XAxis.XAxisIntervalAutoMode = XAxisIntervalAutoMode;
+		chart.ChartArea.XAxis.IsLogarithmic = XAxisIsLogarithmic;
+		chart.ChartArea.XAxis.MajorGridEnabled = XAxisMajorGridEnabled;
+		chart.ChartArea.XAxis.MajorGridInterval = XAxisMajorGridInterval;
+		chart.ChartArea.XAxis.MajorGridIntervalType = XAxisMajorGridIntervalType;
+		chart.ChartArea.XAxis.MinorGridEnabled = XAxisMinorGridEnabled;
+		chart.ChartArea.XAxis.MinorGridInterval = XAxisMinorGridInterval;
+		chart.ChartArea.XAxis.MinorGridIntervalType = XAxisMinorGridIntervalType;
+		chart.ChartArea.XAxis.LineColor = XAxisLineColor;
+		chart.ChartArea.XAxis.MajorGridColor = XAxisMajorGridColor;
+		chart.ChartArea.XAxis.MinorGridColor = XAxisMinorGridColor;
 
 		// YAxis
 		chart.ChartArea.YAxis.XPositionPercent = 0;
 		chart.ChartArea.YAxis.YPositionPercent = InnerPlotYPositionPercent;
-		chart.ChartArea.YAxis.WidthPercent = InnerPlotXPositionPercent;
+		chart.ChartArea.YAxis.WidthPercent = YAxisWidthPercent ?? InnerPlotXPositionPercent;
 		chart.ChartArea.YAxis.HeightPercent = InnerPlotHeightPercent;
 		chart.ChartArea.YAxis.FillColor = YAxisBackgroundColor;
 		chart.ChartArea.YAxis.FontSize = YAxisFontSize;
+		chart.ChartArea.YAxis.FontColor = AxisLabelColor;
+		chart.ChartArea.YAxis.Title = YAxisTitle;
+		chart.ChartArea.YAxis.LabelAngle = YAxisLabelAngle;
+		chart.ChartArea.YAxis.LabelFormat = YAxisLabelFormat;
+		chart.ChartArea.YAxis.LabelAutoFitStyle = YAxisLabelAutoFitStyle;
+		chart.ChartArea.YAxis.IsAutoFit = YAxisIsAutoFit;
+		chart.ChartArea.YAxis.Min = YAxisMinimum;
+		chart.ChartArea.YAxis.Max = YAxisMaximum;
+		chart.ChartArea.YAxis.Interval = YAxisInterval;
+		chart.ChartArea.YAxis.IntervalType = YAxisIntervalType;
+		chart.ChartArea.YAxis.XAxisIntervalAutoMode = YAxisIntervalAutoMode;
+		chart.ChartArea.YAxis.IsLogarithmic = YAxisIsLogarithmic;
+		chart.ChartArea.YAxis.MajorGridEnabled = YAxisMajorGridEnabled;
+		chart.ChartArea.YAxis.MajorGridInterval = YAxisMajorGridInterval;
+		chart.ChartArea.YAxis.MajorGridIntervalType = YAxisMajorGridIntervalType;
+		chart.ChartArea.YAxis.MinorGridEnabled = YAxisMinorGridEnabled;
+		chart.ChartArea.YAxis.MinorGridInterval = YAxisMinorGridInterval;
+		chart.ChartArea.YAxis.MinorGridIntervalType = YAxisMinorGridIntervalType;
+		chart.ChartArea.YAxis.LineColor = YAxisLineColor;
+		chart.ChartArea.YAxis.MajorGridColor = YAxisMajorGridColor;
+		chart.ChartArea.YAxis.MinorGridColor = YAxisMinorGridColor;
+		chart.ChartArea.YAxis.UseShortLabels = UseYAxisShortLabels;
 
 		// Series
 		var seriesIndex = 0;
