@@ -245,20 +245,17 @@ public static class SpecificationEditor
 		_ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
 	};
 
-	private static string FormatColour(Color colour)
+	/// <summary>
+	/// A colour in CSS terms, which is what the colour picker reads and writes: transparent,
+	/// a six-digit hex, or rgba where there is partial alpha.
+	/// </summary>
+	private static string FormatColour(Color colour) => colour.A switch
 	{
-		if (colour.A == 0 && colour is { R: 0, G: 0, B: 0 })
-		{
-			return "transparent";
-		}
-
-		return colour.IsNamedColor
-			? colour.Name
-			: colour.A == 255
-				? FormattableString.Invariant($"#{colour.R:X2}{colour.G:X2}{colour.B:X2}")
-				: FormattableString.Invariant($"#{colour.A:X2}{colour.R:X2}{colour.G:X2}{colour.B:X2}");
-	}
-
+		0 => "transparent",
+		255 => FormattableString.Invariant($"#{colour.R:X2}{colour.G:X2}{colour.B:X2}"),
+		_ => FormattableString.Invariant(
+			$"rgba({colour.R}, {colour.G}, {colour.B}, {colour.A / 255.0:0.###})")
+	};
 	private static bool TryParse(Type target, string? text, out object? parsed)
 	{
 		parsed = null;
@@ -337,6 +334,14 @@ public static class SpecificationEditor
 		return false;
 	}
 
+	/// <summary>
+	/// Parses what the colour picker and a person are both likely to type: transparent, a
+	/// three, six or eight digit hex, an rgb or rgba function, or a named colour.
+	/// </summary>
+	/// <remarks>
+	/// Eight-digit hex is read as RRGGBBAA, the CSS order, because that is what the picker
+	/// emits. Reading it as AARRGGBB would silently swap the alpha for the red channel.
+	/// </remarks>
 	private static bool TryParseColour(string text, out object? parsed)
 	{
 		parsed = null;
@@ -347,9 +352,41 @@ public static class SpecificationEditor
 			return true;
 		}
 
+		if (text.StartsWith("rgb", StringComparison.OrdinalIgnoreCase))
+		{
+			var inside = text[(text.IndexOf('(', StringComparison.Ordinal) + 1)..].TrimEnd(')');
+			var parts = inside.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+			if (parts.Length is < 3 or > 4
+				|| !int.TryParse(parts[0], CultureInfo.InvariantCulture, out var red)
+				|| !int.TryParse(parts[1], CultureInfo.InvariantCulture, out var green)
+				|| !int.TryParse(parts[2], CultureInfo.InvariantCulture, out var blue))
+			{
+				return false;
+			}
+
+			var alpha = 1.0;
+			if (parts.Length == 4 && !double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out alpha))
+			{
+				return false;
+			}
+
+			parsed = Color.FromArgb(
+				(int)Math.Round(Math.Clamp(alpha, 0, 1) * 255),
+				Math.Clamp(red, 0, 255),
+				Math.Clamp(green, 0, 255),
+				Math.Clamp(blue, 0, 255));
+			return true;
+		}
+
 		if (text.StartsWith('#'))
 		{
 			var hex = text[1..];
+			if (hex.Length == 3)
+			{
+				// Shorthand: each digit doubled.
+				hex = string.Concat(hex.Select(c => new string(c, 2)));
+			}
+
 			if (!uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
 			{
 				return false;
@@ -358,7 +395,7 @@ public static class SpecificationEditor
 			parsed = hex.Length switch
 			{
 				6 => Color.FromArgb(255, (int)((value >> 16) & 0xFF), (int)((value >> 8) & 0xFF), (int)(value & 0xFF)),
-				8 => Color.FromArgb((int)((value >> 24) & 0xFF), (int)((value >> 16) & 0xFF), (int)((value >> 8) & 0xFF), (int)(value & 0xFF)),
+				8 => Color.FromArgb((int)(value & 0xFF), (int)((value >> 24) & 0xFF), (int)((value >> 16) & 0xFF), (int)((value >> 8) & 0xFF)),
 				_ => null
 			};
 
@@ -367,7 +404,7 @@ public static class SpecificationEditor
 
 		var named = Color.FromName(text);
 
-		// FromName returns an ARGB-zero, non-known colour for anything it does not recognise,
+		// FromName returns a non-known, alpha-zero colour for anything it does not recognise,
 		// which would otherwise silently paint nothing.
 		if (!named.IsKnownColor)
 		{
@@ -375,6 +412,23 @@ public static class SpecificationEditor
 		}
 
 		parsed = named;
+		return true;
+	}
+
+	/// <summary>
+	/// Puts one property back to the value a fresh specification would carry.
+	/// </summary>
+	public static bool ResetToDefault(ChartSpecification specification, string name)
+	{
+		ArgumentNullException.ThrowIfNull(specification);
+
+		var property = Properties.FirstOrDefault(p => p.Name == name);
+		if (property is null || !property.CanWrite)
+		{
+			return false;
+		}
+
+		property.SetValue(specification, property.GetValue(new ChartSpecification()));
 		return true;
 	}
 }

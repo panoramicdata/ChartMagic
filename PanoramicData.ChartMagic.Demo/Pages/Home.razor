@@ -88,9 +88,10 @@
 										</tr>
 									}
 
-									<tr class="@(property.IsDefault ? "is-default" : null)">
+									<tr class="@(property.IsDefault ? "is-default" : "is-changed")">
 										<th scope="row">@property.Name</th>
 										<td>
+											<div class="editor-cell">
 											@switch (property.Kind)
 											{
 												case EditorKind.Boolean:
@@ -115,6 +116,12 @@
 														   @onchange="e => Set(state, property.Name, e.Value?.ToString())" />
 													break;
 
+												case EditorKind.Colour:
+													@* PDColorPicker carries an alpha slider and allows transparency by default. *@
+													<PDColorPicker Value="@SpecificationEditor.Read(state.Specification, property.Name)"
+														ValueChanged="colour => Set(state, property.Name, colour)" />
+													break;
+
 												case EditorKind.ReadOnly:
 													<span class="read-only">@SpecificationEditor.Read(state.Specification, property.Name)</span>
 													break;
@@ -125,6 +132,16 @@
 														   @onchange="e => Set(state, property.Name, e.Value?.ToString())" />
 													break;
 											}
+
+											@if (!property.IsDefault && property.Kind != EditorKind.ReadOnly)
+											{
+												@* A back-on-itself arrow: this one property goes back to its default. *@
+												<button type="button" class="row-reset"
+													title="Reset @property.Name to its default"
+													aria-label="Reset @property.Name to its default"
+													@onclick="() => ResetProperty(state, property.Name)">&#8634;</button>
+											}
+											</div>
 										</td>
 									</tr>
 								}
@@ -275,6 +292,17 @@
 
 		state.IsEdited = true;
 		state.Invalidate();
+	}
+
+	/// <summary>
+	/// Puts one property back to its default, leaving the rest of the sample alone.
+	/// </summary>
+	private static void ResetProperty(SampleState state, string name)
+	{
+		if (SpecificationEditor.ResetToDefault(state.Specification, name))
+		{
+			state.Invalidate();
+		}
 	}
 
 	/// <summary>
