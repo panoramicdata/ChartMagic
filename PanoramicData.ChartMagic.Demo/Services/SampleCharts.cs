@@ -192,10 +192,24 @@ public static class SampleCharts
 
 		new(
 			"Pie",
-			"One of the 17 chart types the enum still declares and the renderer has no case for. "
-			+ "Issue #33 tracks the remainder.",
-			SampleStatus.NotImplemented,
-			BuildMultiSeries(SeriesChartType.Pie))
+			"One series, one slice per point, coloured per point. Angles run clockwise from "
+			+ "twelve o'clock, and the labels show each value.",
+			SampleStatus.Working,
+			BuildPie(SeriesChartType.Pie)),
+
+		new(
+			"Doughnut",
+			"The same data as a ring. The hole is 60% of the radius, matching the Microsoft "
+			+ "chart control default, and is configurable.",
+			SampleStatus.Working,
+			BuildPie(SeriesChartType.Doughnut)),
+
+		new(
+			"Pie with outside labels and a collected slice",
+			"Labels outside on leader lines, showing each slice as a percentage. The two "
+			+ "smallest slices fall below a 15% threshold and are combined into one.",
+			SampleStatus.Working,
+			BuildCollectedPie()),
 	];
 
 	private static List<ChartPoint> Points(params double[] values)
@@ -272,6 +286,52 @@ public static class SampleCharts
 			specification.LegendStyle = LegendStyle.Column;
 		}
 
+		return specification;
+	}
+
+	private static ChartSpecification BuildPie(SeriesChartType chartType)
+	{
+		var colours = new[]
+		{
+			Color.SteelBlue,
+			Color.SeaGreen,
+			Color.Goldenrod,
+			Color.IndianRed,
+			Color.MediumPurple
+		};
+		var names = new[] { "London", "Manchester", "Leeds", "Bristol", "Glasgow" };
+		var values = new double[] { 34, 26, 18, 13, 9 };
+
+		return new ChartSpecification
+		{
+			SeriesList =
+			[
+				new()
+				{
+					ChartType = chartType,
+					StrokeColor = Color.White,
+					StrokeWidth = 1,
+					Points =
+					[
+						.. values.Select((value, index) => new ChartPoint(
+							names[index],
+							index,
+							value,
+							colours[index]))
+					]
+				}
+			]
+		};
+	}
+
+	private static ChartSpecification BuildCollectedPie()
+	{
+		var specification = BuildPie(SeriesChartType.Pie);
+		specification.PieLabelStyle = "Outside";
+		specification.PieCollectedThresholdPercent = 15;
+		specification.PieCollectedLabel = "Other";
+		specification.PieCollectedColor = Color.DarkGray;
+		specification.SeriesList[0].LabelText = "#PERCENT";
 		return specification;
 	}
 

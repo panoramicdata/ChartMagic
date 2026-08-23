@@ -164,6 +164,31 @@ public class ChartSpecification
 	/// sized, and each series must take its height from the inner plot. Omitting either
 	/// yields a blank chart with no error, which is exactly what happened downstream.
 	/// </remarks>
+	/// <summary>
+	/// The doughnut hole radius as a number. It is declared as an object because the
+	/// corresponding Microsoft chart custom property is a string, and callers pass whichever
+	/// of the two they happen to hold.
+	/// </summary>
+	private double? DoughnutRadiusAsPercent()
+	{
+		return DoughnutRadius switch
+		{
+			null => null,
+			double d => d,
+			int i => i,
+			string text when double.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed) => parsed,
+			_ => null
+		};
+	}
+
+	/// <summary>
+	/// The pie label style, which arrives as one of the Microsoft chart control strings.
+	/// </summary>
+	private PieLabelStyle ParsePieLabelStyle()
+		=> Enum.TryParse<PieLabelStyle>(PieLabelStyle, ignoreCase: true, out var style)
+			? style
+			: Models.PieLabelStyle.Inside;
+
 	public Chart ToChart()
 	{
 		var chart = new Chart();
@@ -316,6 +341,16 @@ public class ChartSpecification
 				StrokeLineJoinStyle = seriesSpec.StrokeLineJoinStyle,
 				StrokeStyle = seriesSpec.StrokeStyle,
 				StrokeWidth = seriesSpec.StrokeWidth,
+
+			// Pie settings come from the chart unless the series overrides them: the Microsoft
+			// chart control holds them per series, but a specification sets them once.
+			DoughnutRadiusPercent = seriesSpec.DoughnutRadiusPercent ?? DoughnutRadiusAsPercent(),
+			PieLabelStyle = seriesSpec.PieLabelStyle != default ? seriesSpec.PieLabelStyle : ParsePieLabelStyle(),
+			PieLineColor = seriesSpec.PieLineColor ?? PieLineColor,
+			PieStartAngleDegrees = seriesSpec.PieStartAngleDegrees ?? PieStartAngleDegrees,
+			PieCollectedThresholdPercent = seriesSpec.PieCollectedThresholdPercent ?? PieCollectedThresholdPercent,
+			PieCollectedColor = seriesSpec.PieCollectedColor ?? PieCollectedColor,
+			PieCollectedLabel = seriesSpec.PieCollectedLabel ?? PieCollectedLabel,
 			};
 			chart.Series.Add(series);
 		}

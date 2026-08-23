@@ -21,4 +21,11 @@ public class SeriesSpecification
 	public Color? MarkerFillColor { get; set; }
 	public double? MarkerStrokeWidth { get; set; }
 	public double? MarkerSize { get; set; }
+	public double? DoughnutRadiusPercent { get; set; }
+	public PieLabelStyle PieLabelStyle { get; set; }
+	public Color? PieLineColor { get; set; }
+	public double? PieStartAngleDegrees { get; set; }
+	public double? PieCollectedThresholdPercent { get; set; }
+	public Color? PieCollectedColor { get; set; }
+	public string? PieCollectedLabel { get; set; }
 }

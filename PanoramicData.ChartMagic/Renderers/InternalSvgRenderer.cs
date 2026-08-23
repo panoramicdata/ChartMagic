@@ -27,14 +27,26 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			widthPixels * chart.ChartArea.InnerPlot.GetCanvasWidthPercent() / 100,
 			heightPixels * chart.ChartArea.InnerPlot.GetCanvasHeightPercent() / 100);
 
-		// Gridlines first, so that the series are drawn over them rather than under.
-		PlotGridlines(chart, geometry, innerPlotNode);
+		// A pie has no axes, so it takes a different path entirely: no gridlines, no axis
+		// strips, and a legend that describes slices rather than series.
+		var pieSeries = chart.Series.FirstOrDefault(IsPie);
+		if (pieSeries is not null)
+		{
+			var slices = PieSliceBuilder.Build(pieSeries);
+			PlotPie(chart, pieSeries, slices, chartAreaNode);
+			PlotPieLegend(chart, slices, chartBackgroundAreaNode);
+		}
+		else
+		{
+			// Gridlines first, so that the series are drawn over them rather than under.
+			PlotGridlines(chart, geometry, innerPlotNode);
 
-		PlotSeries(chart, geometry, defs, innerPlotNode);
+			PlotSeries(chart, geometry, defs, innerPlotNode);
 
-		PlotAxes(chart, geometry, chartAreaNode);
+			PlotAxes(chart, geometry, chartAreaNode);
 
-		PlotLegends(chart, chartBackgroundAreaNode);
+			PlotLegends(chart, chartBackgroundAreaNode);
+		}
 
 		PlotAnnotations(chart, chartBackgroundAreaNode);
 
@@ -900,6 +912,251 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			seriesNode.AppendChild(rectNode);
 		}
 	}
+
+	/// <summary>
+	/// Whether this chart type is drawn as a ring of slices rather than against axes.
+	/// </summary>
+	private static bool IsPie(Series series)
+		=> series.ChartType is SeriesChartType.Pie or SeriesChartType.Doughnut;
+
+	/// <summary>
+	/// Draws a pie or doughnut: one wedge per slice, centred in the chart area, with the slice
+	/// labels inside, outside on a leader line, or not at all.
+	/// </summary>
+	/// <remarks>
+	/// Angles run clockwise from twelve o'clock, as they do in the Microsoft chart control, so a
+	/// start angle of zero puts the first slice boundary at the top.
+	/// </remarks>
+	private void PlotPie(Chart chart, Series series, List<PieSlice> slices, XmlElement chartAreaNode)
+	{
+		if (slices.Count == 0)
+		{
+			return;
+		}
+
+		var pieNode = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
+		pieNode.SetAttribute("id", "pie");
+		chartAreaNode.AppendChild(pieNode);
+
+		var areaWidth = widthPixels * chart.ChartArea.GetCanvasWidthPercent() / 100;
+		var areaHeight = heightPixels * chart.ChartArea.GetCanvasHeightPercent() / 100;
+		var centreX = areaWidth / 2;
+		var centreY = areaHeight / 2;
+
+		// Labels drawn outside need room for themselves, so the pie is drawn smaller.
+		var labelsOutside = series.PieLabelStyle == PieLabelStyle.Outside;
+		var radius = Math.Min(areaWidth, areaHeight) / 2 * (labelsOutside ? 0.62 : 0.78);
+
+		// The Microsoft chart control default hole is 60% of the radius.
+		var innerRadius = series.ChartType == SeriesChartType.Doughnut
+			? radius * Math.Clamp(series.DoughnutRadiusPercent ?? 60, 0, 99) / 100
+			: 0;
+
+		foreach (var slice in slices)
+		{
+			var wedge = _xmlDocument.CreateElement(string.Empty, "path", string.Empty);
+			wedge.SetAttribute("d", WedgePath(centreX, centreY, radius, innerRadius, slice));
+			wedge.SetAttribute("fill", slice.Color.ToHex());
+			if (slice.Color.A != 255)
+			{
+				wedge.SetAttribute(
+					"fill-opacity",
+					(slice.Color.A / 255f).ToString("F2", CultureInfo.InvariantCulture));
+			}
+
+			if (series.StrokeColor != Colors.Transparent && series.StrokeWidth > 0)
+			{
+				wedge.SetAttribute("stroke", series.StrokeColor.ToHex());
+				wedge.SetAttribute("stroke-width", series.StrokeWidth.ToString(CultureInfo.InvariantCulture));
+			}
+
+			pieNode.AppendChild(wedge);
+		}
+
+		if (series.PieLabelStyle == PieLabelStyle.Disabled)
+		{
+			return;
+		}
+
+		// Labels after every wedge, so that a label is never covered by the next slice.
+		foreach (var slice in slices.Where(s => s.Label.Length > 0))
+		{
+			if (labelsOutside)
+			{
+				var from = PointOnCircle(centreX, centreY, radius, slice.MidAngleDegrees);
+				var to = PointOnCircle(centreX, centreY, radius * 1.12, slice.MidAngleDegrees);
+				pieNode.AppendChild(CreateLine(from.X, from.Y, to.X, to.Y, series.PieLineColor, 1));
+
+				// Anchored away from the pie, so that the text runs outwards on both sides.
+				var onTheRight = Math.Sin(ToRadians(slice.MidAngleDegrees)) >= 0;
+				pieNode.AppendChild(
+					CreateTextNode(
+						FormattableString.Invariant($"pieLabel{slice.StartAngleDegrees:F2}"),
+						to.X + (onTheRight ? 3 : -3),
+						to.Y,
+						slice.Label,
+						onTheRight ? HorizontalAlignment.Left : HorizontalAlignment.Right,
+						VerticalAlignment.Middle,
+						series.FontWeight,
+						series.FontFamily,
+						series.FontSize,
+						Colors.Transparent,
+						series.FontColor));
+			}
+			else
+			{
+				// Midway through the ring for a doughnut, and two thirds out for a pie, which is
+				// where the wedge is widest.
+				var labelRadius = innerRadius > 0 ? (radius + innerRadius) / 2 : radius * 0.7;
+				var at = PointOnCircle(centreX, centreY, labelRadius, slice.MidAngleDegrees);
+				pieNode.AppendChild(
+					CreateTextNode(
+						FormattableString.Invariant($"pieLabel{slice.StartAngleDegrees:F2}"),
+						at.X,
+						at.Y,
+						slice.Label,
+						HorizontalAlignment.Center,
+						VerticalAlignment.Middle,
+						series.FontWeight,
+						series.FontFamily,
+						series.FontSize,
+						Colors.Transparent,
+						series.FontColor));
+			}
+		}
+	}
+
+	/// <summary>
+	/// The legend for a pie, which describes slices rather than series.
+	/// </summary>
+	private void PlotPieLegend(Chart chart, List<PieSlice> slices, XmlElement chartBackgroundAreaNode)
+	{
+		if (chart.Legends.Count == 0 || slices.Count == 0)
+		{
+			return;
+		}
+
+		var legend = chart.Legends[0];
+		var legendXmlElement = GetGroup(legend, "legend");
+		chartBackgroundAreaNode.AppendChild(legendXmlElement);
+
+		var legendHeight = heightPixels * legend.GetCanvasHeightPercent() / 100;
+		var fontSize = legend.FontSize;
+		var swatchSize = Math.Round(fontSize * 0.8, 2);
+		var padding = Math.Round(fontSize * 0.5, 2);
+
+		// A pie legend is a list: one row per slice whatever the legend style, because slices are
+		// named and there are usually more of them than a single row would fit.
+		var lineHeight = fontSize * 1.6;
+		var top = Math.Max(padding, (legendHeight - (lineHeight * slices.Count)) / 2);
+
+		for (var index = 0; index < slices.Count; index++)
+		{
+			var slice = slices[index];
+			var swatchY = Math.Round(top + (index * lineHeight) + ((lineHeight - swatchSize) / 2), 2);
+
+			var swatchNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
+			swatchNode.SetAttribute("x", padding.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("y", swatchY.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("width", swatchSize.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("height", swatchSize.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("fill", slice.Color.ToHex());
+			legendXmlElement.AppendChild(swatchNode);
+
+			legendXmlElement.AppendChild(
+				CreateTextNode(
+					FormattableString.Invariant($"legendSlice{index}Text"),
+					padding + swatchSize + (padding / 2),
+					swatchY + (swatchSize / 2),
+					slice.LegendText,
+					HorizontalAlignment.Left,
+					VerticalAlignment.Middle,
+					legend.FontWeight,
+					legend.FontFamily,
+					fontSize,
+					Colors.Transparent,
+					legend.FontColor));
+		}
+	}
+
+	/// <summary>
+	/// The path for one wedge: a filled sector for a pie, or a band between two radii for a
+	/// doughnut.
+	/// </summary>
+	private static string WedgePath(double centreX, double centreY, double radius, double innerRadius, PieSlice slice)
+	{
+		// A single slice covering the whole circle cannot be drawn as one arc, because its start
+		// and end points coincide and the arc becomes a no-op. Two half arcs draw it correctly.
+		var sweep = Math.Min(slice.SweepAngleDegrees, 360);
+		if (sweep >= 359.999)
+		{
+			return FullRingPath(centreX, centreY, radius, innerRadius);
+		}
+
+		var start = slice.StartAngleDegrees;
+		var end = start + sweep;
+		var largeArc = sweep > 180 ? 1 : 0;
+
+		var outerStart = PointOnCircle(centreX, centreY, radius, start);
+		var outerEnd = PointOnCircle(centreX, centreY, radius, end);
+
+		if (innerRadius <= 0)
+		{
+			return $"M{N(centreX)} {N(centreY)} L{N(outerStart.X)} {N(outerStart.Y)} "
+				+ $"A{N(radius)} {N(radius)} 0 {largeArc} 1 {N(outerEnd.X)} {N(outerEnd.Y)} Z";
+		}
+
+		var innerEnd = PointOnCircle(centreX, centreY, innerRadius, end);
+		var innerStart = PointOnCircle(centreX, centreY, innerRadius, start);
+
+		return $"M{N(outerStart.X)} {N(outerStart.Y)} "
+			+ $"A{N(radius)} {N(radius)} 0 {largeArc} 1 {N(outerEnd.X)} {N(outerEnd.Y)} "
+			+ $"L{N(innerEnd.X)} {N(innerEnd.Y)} "
+			+ $"A{N(innerRadius)} {N(innerRadius)} 0 {largeArc} 0 {N(innerStart.X)} {N(innerStart.Y)} Z";
+	}
+
+	private static string FullRingPath(double centreX, double centreY, double radius, double innerRadius)
+	{
+		var top = PointOnCircle(centreX, centreY, radius, 0);
+		var bottom = PointOnCircle(centreX, centreY, radius, 180);
+		var outer = $"M{N(top.X)} {N(top.Y)} "
+			+ $"A{N(radius)} {N(radius)} 0 1 1 {N(bottom.X)} {N(bottom.Y)} "
+			+ $"A{N(radius)} {N(radius)} 0 1 1 {N(top.X)} {N(top.Y)} Z";
+
+		if (innerRadius <= 0)
+		{
+			return outer;
+		}
+
+		// The hole is drawn the other way round, so that the default fill rule leaves it empty.
+		var innerTop = PointOnCircle(centreX, centreY, innerRadius, 0);
+		var innerBottom = PointOnCircle(centreX, centreY, innerRadius, 180);
+		return outer
+			+ $" M{N(innerTop.X)} {N(innerTop.Y)} "
+			+ $"A{N(innerRadius)} {N(innerRadius)} 0 1 0 {N(innerBottom.X)} {N(innerBottom.Y)} "
+			+ $"A{N(innerRadius)} {N(innerRadius)} 0 1 0 {N(innerTop.X)} {N(innerTop.Y)} Z";
+	}
+
+	/// <summary>
+	/// A coordinate formatted for a path, to two decimal places and culture-independently.
+	/// </summary>
+	/// <remarks>
+	/// A path built by concatenating interpolated strings is a plain string, so it cannot be
+	/// handed to FormattableString.Invariant; formatting each number as it goes is what keeps a
+	/// comma-decimal culture from producing an unparseable path.
+	/// </remarks>
+	private static string N(double value) => value.ToString("F2", CultureInfo.InvariantCulture);
+
+	/// <summary>
+	/// A point on a circle, at an angle measured clockwise from twelve o'clock.
+	/// </summary>
+	private static (double X, double Y) PointOnCircle(double centreX, double centreY, double radius, double angleDegrees)
+	{
+		var radians = ToRadians(angleDegrees);
+		return (centreX + (radius * Math.Sin(radians)), centreY - (radius * Math.Cos(radians)));
+	}
+
+	private static double ToRadians(double degrees) => degrees * Math.PI / 180;
 
 	private XmlElement GetGroup(ChartNamedElement element, string id)
 	{
