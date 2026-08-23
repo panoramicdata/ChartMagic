@@ -41,6 +41,20 @@ public class AxisArea(IChartElement parent, string name) : ChartNamedElement(par
 	public double LineWidth { get; set; } = 1;
 
 	/// <summary>
+	/// The dash pattern of the axis line.
+	/// </summary>
+	/// <remarks>
+	/// Separate from <see cref="ChartElement.StrokeStyle"/> for the same reason as
+	/// <see cref="LineColor"/>: that one styles the axis strip background, this one the line.
+	/// </remarks>
+	public ChartDashStyle LineDashStyle { get; set; }
+
+	/// <summary>
+	/// How many minor gridlines fall between one major interval and the next.
+	/// </summary>
+	public int MinorGridSubdivisions { get; set; } = 5;
+
+	/// <summary>
 	/// How far tick marks extend from the axis line, in pixels.
 	/// </summary>
 	public double TickLengthPixels { get; set; } = 5;
