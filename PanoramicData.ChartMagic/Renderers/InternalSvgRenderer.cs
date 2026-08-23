@@ -285,11 +285,20 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 				case LegendStyle.Column:
 					{
-						// One row per series, stacked from the top and centred as a block.
+						// One row per series, stacked from the top and centred as a block, both ways.
+						//
+						// Horizontal centring is what makes the legend width matter. Left-aligning at a fixed
+						// padding meant LegendWidthPercent changed nothing visible, so a chart could ask for a
+						// wider legend and get the same one - a setting neither honoured nor refused.
 						var lineHeight = fontSize * 1.6;
 						var blockHeight = lineHeight * chart.Series.Count;
 						var top = Math.Max(padding, (legendHeight - blockHeight) / 2);
-						swatchX = padding;
+
+						// The widest entry sets the block width. Without text measurement that is estimated
+						// from the character count, which is enough to keep the block inside the legend.
+						var widest = chart.Series.Max(s => (s.LegendText is { Length: > 0 } ? s.LegendText : s.Name).Length);
+						var blockWidth = swatchSize + (padding / 2) + (widest * fontSize * 0.55);
+						swatchX = Math.Max(padding, Math.Round((legendWidth - blockWidth) / 2, 2));
 						swatchY = Math.Round(top + (seriesIndex * lineHeight) + ((lineHeight - swatchSize) / 2), 2);
 						break;
 					}
@@ -388,9 +397,8 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 		if (xAxis.MinorGridEnabled)
 		{
-			foreach (var value in MinorTicks(xAxis, geometry, isValueAxis: geometry.IsHorizontalPlot))
+			foreach (var x in MinorGridPositions(xAxis, geometry))
 			{
-				var x = XAxisPixels(geometry, value);
 				gridNode.AppendChild(CreateLine(x, 0, x, geometry.Height, xAxis.MinorGridColor, xAxis.GridWidth));
 			}
 		}
@@ -438,7 +446,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	{
 		var axisHeight = heightPixels * xAxis.GetCanvasHeightPercent() / 100;
 
-		xAxisNode.AppendChild(CreateLine(0, 0, geometry.Width, 0, xAxis.LineColor, xAxis.LineWidth));
+		xAxisNode.AppendChild(CreateLine(0, 0, geometry.Width, 0, xAxis.LineColor, xAxis.LineWidth, xAxis.LineDashStyle));
 
 		var tickLength = xAxis.TickLengthPixels;
 		var labelY = tickLength + TickLabelGapPixels;
@@ -499,7 +507,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	{
 		var axisWidth = widthPixels * yAxis.GetCanvasWidthPercent() / 100;
 
-		yAxisNode.AppendChild(CreateLine(axisWidth, 0, axisWidth, geometry.Height, yAxis.LineColor, yAxis.LineWidth));
+		yAxisNode.AppendChild(CreateLine(axisWidth, 0, axisWidth, geometry.Height, yAxis.LineColor, yAxis.LineWidth, yAxis.LineDashStyle));
 
 		var tickLength = yAxis.TickLengthPixels;
 		var labelX = axisWidth - tickLength - TickLabelGapPixels;
@@ -571,6 +579,16 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 				chart.ChartArea.XAxis.TargetTickCount);
 		}
 
+		if (geometry.IsCategorical)
+		{
+			// An interval on a category axis means every Nth category, which is how a long set of
+			// labels is thinned. Ignoring it left every category labelled however many there were.
+			var step = (int)Math.Round(chart.ChartArea.XAxis.Interval ?? 1);
+			return step <= 1
+				? geometry.Categories
+				: [.. geometry.Categories.Where((_, index) => index % step == 0)];
+		}
+
 		return geometry.IsCategorical
 			? geometry.Categories
 			: TickGenerator.Linear(
@@ -602,6 +620,60 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	}
 
 	/// <summary>
+	/// Where the vertical minor gridlines go, in pixels across the plot.
+	/// </summary>
+	/// <remarks>
+	/// A category axis subdivides its bands. This used to draw nothing at all, on the reasoning
+	/// that there is nothing between one category and the next - but the reference draws them,
+	/// roughly four to a band, so a chart asking for X minor gridlines got none and the setting
+	/// was neither honoured nor refused.
+	/// </remarks>
+	private static IReadOnlyList<double> MinorGridPositions(AxisArea axis, PlotGeometry geometry)
+	{
+		if (geometry.IsHorizontalPlot)
+		{
+			return [.. MinorTicks(axis, geometry, isValueAxis: true).Select(v => XAxisPixels(geometry, v))];
+		}
+
+		if (!geometry.IsCategorical)
+		{
+			var span = geometry.XDisplayEnd - geometry.XDisplayStart;
+			var interval = axis.MinorGridInterval is > 0
+				? axis.MinorGridInterval.Value
+				: span / Math.Max(axis.TargetTickCount, 1) / Math.Max(axis.MinorGridSubdivisions, 1);
+
+			return
+			[
+				.. TickGenerator
+					.Linear(geometry.XDisplayStart, geometry.XDisplayEnd, interval, axis.TargetTickCount * axis.MinorGridSubdivisions)
+					.Select(geometry.XToPixels)
+			];
+		}
+
+		// Subdivisions of each category band, measured from the band edge rather than its
+		// centre, so the lines fall between the categories as well as within them.
+		var subdivisions = Math.Max(axis.MinorGridSubdivisions, 1);
+		var band = geometry.CategoryBandExtent;
+		if (band <= 0)
+		{
+			return [];
+		}
+
+		var step = band / subdivisions;
+		var positions = new List<double>();
+		for (var x = 0d; x <= geometry.Width + 0.001; x += step)
+		{
+			positions.Add(Math.Round(x, 2));
+			if (positions.Count > 2000)
+			{
+				break;
+			}
+		}
+
+		return positions;
+	}
+
+	/// <summary>
 	/// Minor gridline positions: the interval the caller gave, otherwise a subdivision of the
 	/// major interval, or the intermediate steps within each decade on a logarithmic axis.
 	/// </summary>
@@ -609,8 +681,9 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	{
 		if (!isValueAxis)
 		{
-			// Minor gridlines have no meaning on a category axis: there is nothing between one
-			// category and the next.
+			// Subdivisions of the category band. This used to return nothing, on the reasoning
+			// that there is nothing between one category and the next - but the reference draws
+			// them, about four to a band, so a chart asking for X minor gridlines got none.
 			return [];
 		}
 
@@ -646,28 +719,43 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 		if (axis.UseShortLabels)
 		{
+			// One decimal place, with a suffix once the value reaches a thousand.
+			//
+			// Measured against DocMagic: with short labels on and values topping out at 35, its
+			// axis reads 35.0, 30.0, 25.0 rather than 35, 30, 25. So "short" is not only about
+			// abbreviating large numbers - it is a fixed one-decimal format throughout, and this
+			// implementation left anything under a thousand alone, which is why the setting had no
+			// effect on a percentage axis.
 			var absolute = Math.Abs(value);
 			if (absolute >= 1_000_000_000)
 			{
-				return FormattableString.Invariant($"{value / 1_000_000_000:0.##}bn");
+				return FormattableString.Invariant($"{value / 1_000_000_000:0.0}G");
 			}
 
 			if (absolute >= 1_000_000)
 			{
-				return FormattableString.Invariant($"{value / 1_000_000:0.##}M");
+				return FormattableString.Invariant($"{value / 1_000_000:0.0}M");
 			}
 
 			if (absolute >= 1_000)
 			{
-				return FormattableString.Invariant($"{value / 1_000:0.##}k");
+				return FormattableString.Invariant($"{value / 1_000:0.0}K");
 			}
-		}
 
+			return value.ToString("0.0", CultureInfo.InvariantCulture);
+		}
 		// Two decimal places at most, and none where the value does not need them.
 		return value.ToString("0.##", CultureInfo.InvariantCulture);
 	}
 
-	private XmlElement CreateLine(double x1, double y1, double x2, double y2, Color color, double width)
+	private XmlElement CreateLine(
+		double x1,
+		double y1,
+		double x2,
+		double y2,
+		Color color,
+		double width,
+		ChartDashStyle dashStyle = ChartDashStyle.NotSet)
 	{
 		var lineNode = _xmlDocument.CreateElement(string.Empty, "line", string.Empty);
 		lineNode.SetAttribute("x1", Math.Round(x1, 2).ToString(CultureInfo.InvariantCulture));
@@ -683,8 +771,31 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		}
 
 		lineNode.SetAttribute("stroke-width", width.ToString(CultureInfo.InvariantCulture));
+
+		var dashArray = DashArrayFor(dashStyle);
+		if (dashArray is not null)
+		{
+			lineNode.SetAttribute("stroke-dasharray", dashArray);
+		}
+
 		return lineNode;
 	}
+
+	/// <summary>
+	/// The dash pattern for a style, or null for a solid line.
+	/// </summary>
+	/// <remarks>
+	/// The same patterns the series paths use, so an axis line dashed the same way as a series
+	/// looks the same.
+	/// </remarks>
+	private static string? DashArrayFor(ChartDashStyle dashStyle) => dashStyle switch
+	{
+		ChartDashStyle.Dash => "5,2",
+		ChartDashStyle.DashDot => "5,2,1,2",
+		ChartDashStyle.DashDotDot => "5,2,1,2,1,2",
+		ChartDashStyle.Dot => "1,2",
+		_ => null
+	};
 
 	private void PlotSeries(Chart chart, PlotGeometry geometry, XmlElement defs, XmlElement innerPlotNode)
 	{

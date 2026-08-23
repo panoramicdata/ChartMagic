@@ -335,6 +335,47 @@ public class AxisAndColumnTests
 	}
 
 	[Fact]
+	public void ShortLabels_UseOneDecimalPlace()
+	{
+		// Measured against DocMagic: with short labels on and values topping out at 35, its axis
+		// reads 35.0, 30.0, 25.0. Abbreviating only above a thousand, as this did, left a
+		// percentage axis untouched and made the setting look ignored.
+		var specification = ColumnChart(SeriesChartType.Column, 1);
+		specification.UseYAxisShortLabels = true;
+
+		var labels = Elements(GroupById(Render(specification), "yAxis"), "text")
+			.Select(t => t.Value)
+			.ToList();
+
+		labels.Should().NotBeEmpty();
+		labels.Should().AllSatisfy(l => l.Should().Contain(".", "every label carries one decimal place"));
+	}
+
+	[Fact]
+	public void ShortLabels_AbbreviateThousands()
+	{
+		var specification = new ChartSpecification
+		{
+			UseYAxisShortLabels = true,
+			SeriesList =
+			[
+				new()
+				{
+					ChartType = SeriesChartType.Column,
+					FillColor = Color.SteelBlue,
+					StrokeColor = Color.SteelBlue,
+					Points = Points(12_000, 24_000, 17_000, 31_000),
+				}
+			]
+		};
+
+		Elements(GroupById(Render(specification), "yAxis"), "text")
+			.Select(t => t.Value)
+			.Should()
+			.Contain(l => l.EndsWith('K'));
+	}
+
+	[Fact]
 	public void LogarithmicYAxis_LabelsWholeDecades()
 	{
 		var specification = new ChartSpecification
