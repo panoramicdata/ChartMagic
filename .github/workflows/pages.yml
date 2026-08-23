@@ -31,6 +31,14 @@ jobs:
     - name: Rewrite base href for the Pages subdirectory
       run: sed -i 's|<base href="/" />|<base href="/PanoramicData.ChartMagic/" />|g' release/wwwroot/index.html
 
+    # The stylesheet is linked by a fixed name, so a browser holding the previous one keeps
+    # using it: new markup against old rules renders unstyled tables, a white chart panel and
+    # the light chart in dark mode. All of that looked like rendering bugs and was a stale
+    # file. Blazor fingerprints its own assets but not this one, so the commit is stamped on
+    # here instead.
+    - name: Cache-bust the stylesheet
+      run: sed -i "s|css/demo.css|css/demo.css?v=${GITHUB_SHA}|g" release/wwwroot/index.html
+
     # Blazor routing is client-side, so a deep link has to be served the same document.
     - name: Copy index.html to 404.html
       run: cp release/wwwroot/index.html release/wwwroot/404.html
