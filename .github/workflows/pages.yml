@@ -1,0 +1,48 @@
+name: Deploy demo to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy-to-github-pages:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        # Nerdbank.GitVersioning needs history to compute a version.
+        fetch-depth: 0
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v5.0.0
+      with:
+        dotnet-version: 10.x
+
+    - name: Restore
+      run: dotnet restore PanoramicData.ChartMagic.Demo/PanoramicData.ChartMagic.Demo.csproj
+
+    - name: Publish
+      run: dotnet publish PanoramicData.ChartMagic.Demo/PanoramicData.ChartMagic.Demo.csproj --configuration Release --output release --nologo
+
+    # Pages serves the site from a repository subdirectory, so the base href has to match or
+    # every asset request 404s.
+    - name: Rewrite base href for the Pages subdirectory
+      run: sed -i 's|<base href="/" />|<base href="/ChartMagic/" />|g' release/wwwroot/index.html
+
+    # Blazor routing is client-side, so a deep link has to be served the same document.
+    - name: Copy index.html to 404.html
+      run: cp release/wwwroot/index.html release/wwwroot/404.html
+
+    # Without this, Pages treats the site as Jekyll and drops the _framework folder, which is
+    # where the whole application lives.
+    - name: Add .nojekyll
+      run: touch release/wwwroot/.nojekyll
+
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        branch: gh-pages
+        folder: release/wwwroot
+        single-commit: true

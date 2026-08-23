@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace PanoramicData.ChartMagic.Test.Models;
+namespace PanoramicData.ChartMagic.Models;
 
 public class SeriesSpecification
 {
