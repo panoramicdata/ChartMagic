@@ -1,4 +1,4 @@
-namespace PanoramicData.ChartMagic.Test;
+﻿namespace PanoramicData.ChartMagic.Test;
 
 public class FormatTests : RenderTest
 {
@@ -21,6 +21,40 @@ public class FormatTests : RenderTest
 		finally
 		{
 			fileInfo.Delete();
+		}
+	}
+
+	/// <summary>
+	/// A format that cannot be written says so.
+	/// </summary>
+	/// <remarks>
+	/// The imaging library underneath writes PNG, JPEG and WEBP, and returns null rather than
+	/// throwing for anything else - so BMP, GIF and TIFF used to surface as a
+	/// NullReferenceException from inside SaveImage, which tells a caller nothing about which
+	/// format was refused or what to ask for instead. Consuming code has to be able to tell an
+	/// unsupported format from a bug, because the substitution it makes depends on knowing which.
+	/// </remarks>
+	[Theory]
+	[InlineData(ChartImageFormat.Bmp)]
+	[InlineData(ChartImageFormat.Gif)]
+	[InlineData(ChartImageFormat.Tiff)]
+	public void UnwritableFormat_ThrowsSayingSo(ChartImageFormat chartImageFormat)
+	{
+		var fileInfo = GetTempFileName(chartImageFormat);
+		try
+		{
+			var act = () => SaveFile(BasicChartSpecification, fileInfo);
+
+			act.Should().Throw<NotSupportedException>()
+				.WithMessage($"*{chartImageFormat}*");
+		}
+		finally
+		{
+			fileInfo.Refresh();
+			if (fileInfo.Exists)
+			{
+				fileInfo.Delete();
+			}
 		}
 	}
 }

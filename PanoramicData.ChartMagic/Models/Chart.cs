@@ -82,6 +82,18 @@ public class Chart : RootChartElement
 		};
 
 		using var encoded = image.Encode(skFormat, quality: 100);
+
+		// Encode returns null rather than throwing for a format Skia cannot write, and BMP, GIF
+		// and TIFF are all in that category - it writes PNG, JPEG and WEBP only. Without this
+		// check the next line threw a NullReferenceException from inside SaveImage, which tells
+		// the caller nothing about which format was refused or why.
+		if (encoded is null)
+		{
+			throw new NotSupportedException(
+				$"{format} cannot be encoded: the underlying imaging library writes PNG, JPEG "
+				+ "and WEBP only. Render PNG, or SVG for vector output.");
+		}
+
 		encoded.SaveTo(stream);
 	}
 
