@@ -145,6 +145,10 @@ internal static class PieSliceBuilder
 		=> series.PieLabelStyle == Models.PieLabelStyle.Disabled
 			? string.Empty
 			: Substitute(series.LabelText, point, value, percentage, total)
+				// The category name, not the value. Measured against DocMagic: with no label text
+				// set, the Microsoft chart control labels a pie slice with its X value, so a pie of
+				// cities reads London, Manchester rather than 34, 26.
+				?? point.XValueString
 				?? value.ToString("0.##", CultureInfo.InvariantCulture);
 
 	private static string LegendTextFor(ChartPoint point, double value)

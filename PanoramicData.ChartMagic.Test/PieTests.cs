@@ -11,19 +11,23 @@ namespace PanoramicData.ChartMagic.Test;
 /// <remarks>
 /// A pie takes a different path through the renderer from everything else: no axes, no
 /// gridlines, a wedge per point rather than a shape per series, and a legend describing slices.
-/// The geometry assertions use the default layout - a 65%-wide chart area, so a 800x400 image
-/// gives a 520x400 area, centred at (260, 200).
+/// The geometry assertions use the placement measured against DocMagic: a 65%-wide chart area
+/// with an inner plot inset 10%, so an 800x400 image gives a 468x360 plot, and the pie is
+/// centred in it at 0.95 of its shorter side. Coordinates are local to the inner plot group.
 /// </remarks>
 public class PieTests
 {
 	private const int Width = 800;
 	private const int Height = 400;
 
-	private const double CentreX = 260;
-	private const double CentreY = 200;
+	/// <summary>Half of the 468-wide inner plot.</summary>
+	private const double CentreX = 234;
 
-	/// <summary>min(520, 400) / 2 * 0.78, the inside-label radius factor.</summary>
-	private const double Radius = 156;
+	/// <summary>Half of the 360-high inner plot.</summary>
+	private const double CentreY = 180;
+
+	/// <summary>0.95 * min(468, 360) / 2, the factor measured from DocMagic output.</summary>
+	private const double Radius = 171;
 
 	private static readonly string[] Quarters = ["Q1", "Q2", "Q3", "Q4"];
 
@@ -92,21 +96,22 @@ public class PieTests
 	}
 
 	[Fact]
-	public void PieChart_FirstWedgeStartsAtTheTopAndSweepsClockwise()
+	public void PieChart_FirstWedgeStartsAtThreeOClockAndSweepsClockwise()
 	{
 		var first = Elements(GroupById(Render(PieChart()), "pie")!, "path")[0]
 			.Attribute("d")!
 			.Value;
 
-		// Four equal slices: the first runs from twelve o'clock to three o'clock, so it starts
-		// at the centre, goes up to the top of the circle, and arcs round to the right edge.
+		// Four equal slices. Established by rendering quarters through both renderers: the
+		// Microsoft chart control starts at three o'clock, so the first quarter runs from
+		// there round to six o'clock.
 		first.Should().StartWith(
-			FormattableString.Invariant($"M{CentreX:F2} {CentreY:F2} L{CentreX:F2} {CentreY - Radius:F2}"),
-			"a wedge is drawn from the centre out to the start of its arc");
+			FormattableString.Invariant($"M{CentreX:F2} {CentreY:F2} L{CentreX + Radius:F2} {CentreY:F2}"),
+			"a wedge is drawn from the centre out to the start of its arc, at three o'clock");
 
 		first.Should().Contain(
-			FormattableString.Invariant($"1 {CentreX + Radius:F2} {CentreY:F2}"),
-			"a quarter slice from the top ends at the right of the circle, drawn clockwise");
+			FormattableString.Invariant($"1 {CentreX:F2} {CentreY + Radius:F2}"),
+			"a quarter slice from three o'clock ends at the bottom, drawn clockwise");
 	}
 
 	[Fact]
@@ -119,11 +124,11 @@ public class PieTests
 
 		wedges.Should().HaveCount(3);
 
-		// A half circle ends at the bottom of the circle.
-		wedges[0].Should().Contain(FormattableString.Invariant($"{CentreX:F2} {CentreY + Radius:F2}"));
+		// Starting at three o'clock, a half circle ends at nine.
+		wedges[0].Should().Contain(FormattableString.Invariant($"{CentreX - Radius:F2} {CentreY:F2}"));
 
-		// And the next quarter ends at the left.
-		wedges[1].Should().Contain(FormattableString.Invariant($"{CentreX - Radius:F2} {CentreY:F2}"));
+		// And the next quarter ends at twelve.
+		wedges[1].Should().Contain(FormattableString.Invariant($"{CentreX:F2} {CentreY - Radius:F2}"));
 	}
 
 	[Fact]
@@ -134,9 +139,9 @@ public class PieTests
 
 		var first = Elements(GroupById(Render(specification), "pie")!, "path")[0].Attribute("d")!.Value;
 
-		// Started a quarter turn on, the first slice begins at three o'clock rather than twelve.
+		// Started a quarter turn on from three o'clock, the first slice begins at six.
 		first.Should().StartWith(
-			FormattableString.Invariant($"M{CentreX:F2} {CentreY:F2} L{CentreX + Radius:F2} {CentreY:F2}"));
+			FormattableString.Invariant($"M{CentreX:F2} {CentreY:F2} L{CentreX:F2} {CentreY + Radius:F2}"));
 	}
 
 	[Fact]
@@ -222,13 +227,15 @@ public class PieTests
 	}
 
 	[Fact]
-	public void PieChart_LabelsShowTheValueByDefault()
+	public void PieChart_LabelsShowTheCategoryNameByDefault()
 	{
 		var labels = Elements(GroupById(Render(PieChart(values: [10, 20, 30, 40]))!, "pie")!, "text")
 			.Select(t => t.Value)
 			.ToList();
 
-		labels.Should().Equal(["10", "20", "30", "40"]);
+		// Measured against DocMagic: with no label text set, the Microsoft chart control labels a
+		// pie slice with its X value, so the names appear rather than the numbers.
+		labels.Should().Equal(Quarters);
 	}
 
 	[Fact]

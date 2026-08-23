@@ -11,6 +11,11 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	/// </summary>
 	private const double TickLabelGapPixels = 4;
 
+	/// <summary>
+	/// The offset that puts a pie start angle of zero at three o clock.
+	/// </summary>
+	private const double QuarterTurnDegrees = 90;
+
 	internal void SaveImage(Stream stream, Chart chart)
 	{
 		Initialize(
@@ -33,7 +38,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		if (pieSeries is not null)
 		{
 			var slices = PieSliceBuilder.Build(pieSeries);
-			PlotPie(chart, pieSeries, slices, chartAreaNode);
+			PlotPie(pieSeries, slices, innerPlotNode, geometry.Width, geometry.Height);
 			PlotPieLegend(chart, slices, chartBackgroundAreaNode);
 		}
 		else
@@ -927,7 +932,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	/// Angles run clockwise from twelve o'clock, as they do in the Microsoft chart control, so a
 	/// start angle of zero puts the first slice boundary at the top.
 	/// </remarks>
-	private void PlotPie(Chart chart, Series series, List<PieSlice> slices, XmlElement chartAreaNode)
+	private void PlotPie(Series series, List<PieSlice> slices, XmlElement innerPlotNode, double plotWidth, double plotHeight)
 	{
 		if (slices.Count == 0)
 		{
@@ -936,16 +941,18 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 		var pieNode = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
 		pieNode.SetAttribute("id", "pie");
-		chartAreaNode.AppendChild(pieNode);
+		innerPlotNode.AppendChild(pieNode);
 
-		var areaWidth = widthPixels * chart.ChartArea.GetCanvasWidthPercent() / 100;
-		var areaHeight = heightPixels * chart.ChartArea.GetCanvasHeightPercent() / 100;
-		var centreX = areaWidth / 2;
-		var centreY = areaHeight / 2;
+		// Centred in the inner plot, not the chart area. Measured against DocMagic: for a chart
+		// area 468x400 with an inner plot inset 10% left and 10% vertically, its pie centre was
+		// the inner plot centre and its diameter exactly 0.95 of the shorter inner plot side.
+		// Drawing in the chart area instead put the pie 24px left and 20px high, and 8% small.
+		var centreX = plotWidth / 2;
+		var centreY = plotHeight / 2;
 
 		// Labels drawn outside need room for themselves, so the pie is drawn smaller.
 		var labelsOutside = series.PieLabelStyle == PieLabelStyle.Outside;
-		var radius = Math.Min(areaWidth, areaHeight) / 2 * (labelsOutside ? 0.62 : 0.78);
+		var radius = Math.Min(plotWidth, plotHeight) / 2 * (labelsOutside ? 0.75 : 0.95);
 
 		// The Microsoft chart control default hole is 60% of the radius.
 		var innerRadius = series.ChartType == SeriesChartType.Doughnut
@@ -1152,7 +1159,10 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	/// </summary>
 	private static (double X, double Y) PointOnCircle(double centreX, double centreY, double radius, double angleDegrees)
 	{
-		var radians = ToRadians(angleDegrees);
+		// A start angle of zero puts the first slice boundary at three o clock, not twelve.
+		// Established by rendering four equal quarters through both renderers: the Microsoft
+		// chart control put the first quarter between three and six o clock.
+		var radians = ToRadians(angleDegrees + QuarterTurnDegrees);
 		return (centreX + (radius * Math.Sin(radians)), centreY - (radius * Math.Cos(radians)));
 	}
 
