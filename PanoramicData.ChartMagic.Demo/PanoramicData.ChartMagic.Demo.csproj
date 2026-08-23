@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -11,7 +11,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
-  </ItemGroup>
+    <!-- PDTabSet and PDTab. Their scoped CSS reads Bootstrap custom properties with
+         fallbacks, so the demo supplies those from its own theme tokens rather than
+         taking a dependency on Bootstrap itself. -->
+    <PackageReference Include="PanoramicData.Blazor" />
+	</ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PanoramicData.ChartMagic\PanoramicData.ChartMagic.csproj" />

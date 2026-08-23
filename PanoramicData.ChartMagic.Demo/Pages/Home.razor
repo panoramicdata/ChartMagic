@@ -1,26 +1,35 @@
 @page "/"
-@using PanoramicData.ChartMagic.Demo.Services
+@inject IJSRuntime JS
 
 <PageTitle>ChartMagic</PageTitle>
 
-<h1>ChartMagic</h1>
-
-<p class="lead">
-	Charts rendered in your browser by <code>PanoramicData.ChartMagic</code>, running under
-	WebAssembly. Every chart below is generated from a <code>ChartSpecification</code> at page
-	load and inserted as inline SVG &mdash; there is no server and no image file.
-</p>
-
-<p>
-	This page doubles as a scoreboard. Samples are ordered so that what works comes first, and
-	the gaps are plainly visible below. Each caption links the gap to its issue.
-</p>
+<header class="page-header">
+	<div>
+		<h1>ChartMagic</h1>
+		<p class="lead">
+			Charts rendered in your browser by <code>PanoramicData.ChartMagic</code>, running under
+			WebAssembly. Every chart is generated from a <code>ChartSpecification</code> and
+			inserted as inline SVG &mdash; there is no server and no image file.
+		</p>
+	</div>
+	<div class="mode-picker" role="group" aria-label="Colour mode">
+		@foreach (var mode in Modes)
+		{
+			<button type="button"
+					class="mode-button @(mode.Value == _mode ? "active" : null)"
+					aria-pressed="@(mode.Value == _mode ? "true" : "false")"
+					@onclick="() => SetModeAsync(mode.Value)">
+				@mode.Label
+			</button>
+		}
+	</div>
+</header>
 
 <p class="notes">
-	Every chart is drawn on a deliberately translucent background, so the stripes behind it are
-	the page showing through. Each one is also rendered twice, in light and dark colours, and the
-	stylesheet shows whichever matches your colour scheme &mdash; the renderer writes concrete
-	colours into the SVG, so a single render cannot follow the page.
+	Each tab holds one sample: the chart, then the <code>ChartSpecification</code> properties it
+	sets and the data behind it. Both are read from the specification that produced the chart, so
+	they cannot drift from what you are looking at. Every chart is drawn on a deliberately
+	translucent background, so the stripes showing through are the page.
 </p>
 
 <div class="status-key">
@@ -29,26 +38,179 @@
 	<span class="badge missing">Not implemented</span> draws nothing
 </div>
 
-@foreach (var sample in SampleCharts.All)
-{
-	<section class="sample">
-		<h2>
-			@sample.Title
-			<span class="badge @BadgeClass(sample.Status)">@BadgeText(sample.Status)</span>
-		</h2>
-		<p class="notes">@sample.Notes</p>
-		<div class="chart">
-			<div class="light-only">
-				@((MarkupString)SampleCharts.ToSvg(sample.Specification, ChartTheme.Light))
-			</div>
-			<div class="dark-only">
-				@((MarkupString)SampleCharts.ToSvg(sample.Specification, ChartTheme.Dark))
-			</div>
-		</div>
-	</section>
-}
+<PDTabSet CssClass="samples" TabMinWidth="auto" TabMaxWidth="none">
+	@foreach (var sample in _samples)
+	{
+		<PDTab Title="@sample.Title">
+			<section class="sample">
+				<h2>
+					@sample.Title
+					<span class="badge @BadgeClass(sample.Status)">@BadgeText(sample.Status)</span>
+				</h2>
+				<p class="notes">@sample.Notes</p>
+
+				@{
+					var view = View(sample);
+				}
+
+				<div class="sample-body">
+					<div class="sample-chart">
+						<div class="chart">
+							<div class="light-only">@((MarkupString)view.LightSvg)</div>
+							<div class="dark-only">@((MarkupString)view.DarkSvg)</div>
+						</div>
+					</div>
+
+					<aside class="sample-detail">
+						<h3>ChartSpecification</h3>
+						@if (view.Settings.Count == 0)
+						{
+							<p class="notes">Nothing beyond the defaults.</p>
+						}
+						else
+						{
+							<table class="detail-table">
+								<tbody>
+									@foreach (var setting in view.Settings)
+									{
+										<tr>
+											<th scope="row">@setting.Name</th>
+											<td>@setting.Value</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						}
+
+						<h3>Series</h3>
+						@foreach (var series in view.Series)
+						{
+							<p class="series-name">@series.Name</p>
+							<table class="detail-table">
+								<tbody>
+									@foreach (var setting in series.Settings)
+									{
+										<tr>
+											<th scope="row">@setting.Name</th>
+											<td>@setting.Value</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						}
+
+						<h3>Data</h3>
+						<table class="detail-table data-table">
+							<thead>
+								<tr>
+									<th scope="col"></th>
+									@foreach (var name in view.Data.SeriesNames)
+									{
+										<th scope="col">@name</th>
+									}
+								</tr>
+							</thead>
+							<tbody>
+								@foreach (var row in view.Data.Rows)
+								{
+									<tr>
+										<th scope="row">@row.Category</th>
+										@foreach (var value in row.Values)
+										{
+											<td>@value</td>
+										}
+									</tr>
+								}
+							</tbody>
+						</table>
+					</aside>
+				</div>
+			</section>
+		</PDTab>
+	}
+</PDTabSet>
 
 @code {
+	/// <summary>
+	/// Everything a tab needs, computed once for the sample it belongs to.
+	/// </summary>
+	/// <remarks>
+	/// The details are read before the SVGs are rendered, deliberately: rendering applies the
+	/// theme colours to the specification, and those would otherwise show up in the property
+	/// list as though the sample had asked for them.
+	/// </remarks>
+	private sealed record SampleView(
+		IReadOnlyList<SettingRow> Settings,
+		IReadOnlyList<SeriesRow> Series,
+		DataGrid Data,
+		string LightSvg,
+		string DarkSvg);
+
+	private static readonly (string Value, string Label)[] Modes =
+	[
+		("auto", "Auto"),
+		("light", "Light"),
+		("dark", "Dark")
+	];
+
+	private IReadOnlyList<ChartSample> _samples = [];
+	private readonly Dictionary<string, SampleView> _views = [];
+	private string _mode = "auto";
+
+	protected override void OnInitialized()
+		// Held in a field: the gallery builds fresh specifications on every access, and the view
+		// cache is keyed against these instances.
+		=> _samples = SampleCharts.All;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (!firstRender)
+		{
+			return;
+		}
+
+		// The mode was already applied to the document by the boot script; this is only to show
+		// the right button as selected.
+		var stored = await JS.InvokeAsync<string>("chartMagicDemo.getTheme");
+		if (stored != _mode)
+		{
+			_mode = stored;
+			StateHasChanged();
+		}
+	}
+
+	private async Task SetModeAsync(string mode)
+	{
+		_mode = mode;
+		await JS.InvokeVoidAsync("chartMagicDemo.setTheme", mode);
+	}
+
+	/// <summary>
+	/// Builds a tab's content on first view and keeps it, so switching tabs does not re-render
+	/// every chart and re-reflect every specification.
+	/// </summary>
+	private SampleView View(ChartSample sample)
+	{
+		if (_views.TryGetValue(sample.Title, out var existing))
+		{
+			return existing;
+		}
+
+		var settings = SampleDetails.ChartSettings(sample.Specification);
+		var series = SampleDetails.SeriesSettings(sample.Specification);
+		var data = SampleDetails.Data(sample.Specification);
+
+		var view = new SampleView(
+			settings,
+			series,
+			data,
+			SampleCharts.ToSvg(sample.Specification, ChartTheme.Light),
+			SampleCharts.ToSvg(sample.Specification, ChartTheme.Dark));
+
+		_views[sample.Title] = view;
+		return view;
+	}
+
 	private static string BadgeClass(SampleStatus status) => status switch
 	{
 		SampleStatus.Working => "working",
