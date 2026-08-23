@@ -1,0 +1,380 @@
+using PanoramicData.ChartMagic.Models;
+using System.Collections;
+using System.Drawing;
+using System.Globalization;
+using System.Reflection;
+
+namespace PanoramicData.ChartMagic.Demo.Services;
+
+/// <summary>
+/// What kind of editor a property needs.
+/// </summary>
+public enum EditorKind
+{
+	/// <summary>A checkbox.</summary>
+	Boolean,
+
+	/// <summary>A dropdown of the enum's values.</summary>
+	Enumeration,
+
+	/// <summary>A number box.</summary>
+	Number,
+
+	/// <summary>A colour, edited as text so that named colours can be typed.</summary>
+	Colour,
+
+	/// <summary>A text box.</summary>
+	Text,
+
+	/// <summary>Shown but not editable: a collection, or a type with no sensible editor.</summary>
+	ReadOnly
+}
+
+/// <summary>
+/// One editable property of a specification.
+/// </summary>
+/// <param name="Name">The property name.</param>
+/// <param name="Group">The heading it is filed under.</param>
+/// <param name="Kind">The editor it needs.</param>
+/// <param name="Options">The permitted values, for an enumeration.</param>
+/// <param name="IsDefault">Whether it still holds the value a fresh specification would.</param>
+public record PropertyEditor(
+	string Name,
+	string Group,
+	EditorKind Kind,
+	IReadOnlyList<string> Options,
+	bool IsDefault);
+
+/// <summary>
+/// Reads and writes specification properties by name, so the demo can offer the whole
+/// specification for editing without listing 130 properties by hand.
+/// </summary>
+/// <remarks>
+/// Listing them by hand would go out of date the first time a property was added, and a demo
+/// that silently omits a property is worse than one that shows it as unsupported.
+/// </remarks>
+public static class SpecificationEditor
+{
+	private static readonly PropertyInfo[] Properties = typeof(ChartSpecification)
+		.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+		.Where(p => p.CanRead)
+		.OrderBy(p => GroupOf(p.Name), StringComparer.Ordinal)
+		.ThenBy(p => p.Name, StringComparer.Ordinal)
+		.ToArray();
+
+	/// <summary>
+	/// Every property, in the order they should be shown.
+	/// </summary>
+	public static IReadOnlyList<PropertyEditor> Describe(ChartSpecification specification)
+	{
+		ArgumentNullException.ThrowIfNull(specification);
+
+		var defaults = new ChartSpecification();
+		return
+		[
+			.. Properties.Select(p => new PropertyEditor(
+				p.Name,
+				GroupOf(p.Name),
+				KindOf(p),
+				OptionsOf(p),
+				Equals(Format(p.GetValue(specification)), Format(p.GetValue(defaults)))))
+		];
+	}
+
+	/// <summary>
+	/// The current value of a property, as text for an input box.
+	/// </summary>
+	public static string Read(ChartSpecification specification, string name)
+	{
+		ArgumentNullException.ThrowIfNull(specification);
+
+		var property = Properties.FirstOrDefault(p => p.Name == name);
+		return property is null ? string.Empty : Format(property.GetValue(specification));
+	}
+
+	/// <summary>
+	/// Writes a property from text, and reports whether it took.
+	/// </summary>
+	/// <remarks>
+	/// A value that will not parse is ignored rather than throwing: the user is typing into a
+	/// live chart, and half-typed input is normal rather than exceptional.
+	/// </remarks>
+	public static bool Write(ChartSpecification specification, string name, string? value)
+	{
+		ArgumentNullException.ThrowIfNull(specification);
+
+		var property = Properties.FirstOrDefault(p => p.Name == name);
+		if (property is null || !property.CanWrite)
+		{
+			return false;
+		}
+
+		if (!TryParse(property.PropertyType, value, out var parsed))
+		{
+			return false;
+		}
+
+		property.SetValue(specification, parsed);
+		return true;
+	}
+
+	/// <summary>
+	/// A copy of a specification, so the theme colours can be applied to something disposable
+	/// rather than to the specification the user is editing.
+	/// </summary>
+	/// <remarks>
+	/// Points are records and are shared rather than copied: nothing mutates them, and copying
+	/// them per render for every sample would be waste.
+	/// </remarks>
+	public static ChartSpecification Clone(ChartSpecification specification)
+	{
+		ArgumentNullException.ThrowIfNull(specification);
+
+		var copy = new ChartSpecification();
+		foreach (var property in Properties.Where(p => p.CanWrite))
+		{
+			property.SetValue(copy, property.GetValue(specification));
+		}
+
+		copy.SeriesList = [.. specification.SeriesList.Select(CloneSeries)];
+		return copy;
+	}
+
+	private static SeriesSpecification CloneSeries(SeriesSpecification series)
+	{
+		var copy = new SeriesSpecification();
+		foreach (var property in typeof(SeriesSpecification)
+			.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+			.Where(p => p is { CanRead: true, CanWrite: true }))
+		{
+			property.SetValue(copy, property.GetValue(series));
+		}
+
+		return copy;
+	}
+
+	/// <summary>
+	/// Groups properties by what they configure, taken from the name. Grouping 130 rows is what
+	/// makes them navigable; the alternative is one alphabetical wall.
+	/// </summary>
+	private static string GroupOf(string name) => name switch
+	{
+		_ when name.StartsWith("ChartArea", StringComparison.Ordinal) => "2 Chart area",
+		_ when name.StartsWith("InnerPlot", StringComparison.Ordinal) => "3 Inner plot",
+		_ when name.StartsWith("Legend", StringComparison.Ordinal) => "4 Legend",
+		_ when name.StartsWith("XAxis", StringComparison.Ordinal) => "5 X axis",
+		_ when name.StartsWith("YAxis", StringComparison.Ordinal) || name.StartsWith("UseYAxis", StringComparison.Ordinal) => "6 Y axis",
+		_ when name.StartsWith("Axis", StringComparison.Ordinal) => "7 Axis, both",
+		_ when name.StartsWith("Pie", StringComparison.Ordinal) || name.StartsWith("Doughnut", StringComparison.Ordinal) => "8 Pie and doughnut",
+		_ when name.Contains("3d", StringComparison.Ordinal) => "9 Three dimensional",
+		_ when name.StartsWith("Label", StringComparison.Ordinal) || name.StartsWith("Palette", StringComparison.Ordinal) => "A Labels and palette",
+		_ when name.StartsWith("Chart", StringComparison.Ordinal) => "1 Chart",
+		_ => "B Other"
+	};
+
+	private static EditorKind KindOf(PropertyInfo property)
+	{
+		var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+
+		if (!property.CanWrite)
+		{
+			return EditorKind.ReadOnly;
+		}
+
+		if (type == typeof(bool))
+		{
+			return EditorKind.Boolean;
+		}
+
+		if (type.IsEnum)
+		{
+			return EditorKind.Enumeration;
+		}
+
+		if (type == typeof(Color))
+		{
+			return EditorKind.Colour;
+		}
+
+		if (type == typeof(int) || type == typeof(double) || type == typeof(float) || type == typeof(long))
+		{
+			return EditorKind.Number;
+		}
+
+		if (type == typeof(string) || type == typeof(object))
+		{
+			return EditorKind.Text;
+		}
+
+		// A list: shown so that its presence is visible, but not editable here.
+		return EditorKind.ReadOnly;
+	}
+
+	private static IReadOnlyList<string> OptionsOf(PropertyInfo property)
+	{
+		var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+		if (!type.IsEnum)
+		{
+			return [];
+		}
+
+		var names = Enum.GetNames(type).ToList();
+
+		// A nullable enum can be cleared, so it needs an empty option to clear it to.
+		if (Nullable.GetUnderlyingType(property.PropertyType) is not null)
+		{
+			names.Insert(0, string.Empty);
+		}
+
+		return names;
+	}
+
+	/// <summary>
+	/// Formats a value for an input box: round-trippable, so reading and writing it back is a
+	/// no-op.
+	/// </summary>
+	private static string Format(object? value) => value switch
+	{
+		null => string.Empty,
+		bool flag => flag ? "true" : "false",
+		Color colour => FormatColour(colour),
+		double number => number.ToString("0.######", CultureInfo.InvariantCulture),
+		float number => number.ToString("0.######", CultureInfo.InvariantCulture),
+		string text => text,
+		IEnumerable list => FormattableString.Invariant($"[{list.Cast<object?>().Count()} items]"),
+		_ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
+	};
+
+	private static string FormatColour(Color colour)
+	{
+		if (colour.A == 0 && colour is { R: 0, G: 0, B: 0 })
+		{
+			return "transparent";
+		}
+
+		return colour.IsNamedColor
+			? colour.Name
+			: colour.A == 255
+				? FormattableString.Invariant($"#{colour.R:X2}{colour.G:X2}{colour.B:X2}")
+				: FormattableString.Invariant($"#{colour.A:X2}{colour.R:X2}{colour.G:X2}{colour.B:X2}");
+	}
+
+	private static bool TryParse(Type target, string? text, out object? parsed)
+	{
+		parsed = null;
+		var underlying = Nullable.GetUnderlyingType(target) ?? target;
+		var isNullable = Nullable.GetUnderlyingType(target) is not null || !target.IsValueType;
+
+		if (string.IsNullOrWhiteSpace(text))
+		{
+			if (!isNullable)
+			{
+				return false;
+			}
+
+			// An empty string is a legitimate value for a string property, and null for the rest.
+			parsed = underlying == typeof(string) ? string.Empty : null;
+			return true;
+		}
+
+		text = text.Trim();
+
+		if (underlying == typeof(string) || underlying == typeof(object))
+		{
+			parsed = text;
+			return true;
+		}
+
+		if (underlying == typeof(bool))
+		{
+			if (!bool.TryParse(text, out var flag))
+			{
+				return false;
+			}
+
+			parsed = flag;
+			return true;
+		}
+
+		if (underlying.IsEnum)
+		{
+			if (!Enum.TryParse(underlying, text, ignoreCase: true, out var value))
+			{
+				return false;
+			}
+
+			parsed = value;
+			return true;
+		}
+
+		if (underlying == typeof(Color))
+		{
+			return TryParseColour(text, out parsed);
+		}
+
+		if (underlying == typeof(int) || underlying == typeof(long))
+		{
+			if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var whole))
+			{
+				return false;
+			}
+
+			parsed = underlying == typeof(int) ? (int)whole : whole;
+			return true;
+		}
+
+		if (underlying == typeof(double) || underlying == typeof(float))
+		{
+			if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
+			{
+				return false;
+			}
+
+			parsed = underlying == typeof(double) ? number : (float)number;
+			return true;
+		}
+
+		return false;
+	}
+
+	private static bool TryParseColour(string text, out object? parsed)
+	{
+		parsed = null;
+
+		if (string.Equals(text, "transparent", StringComparison.OrdinalIgnoreCase))
+		{
+			parsed = Color.FromArgb(0, 0, 0, 0);
+			return true;
+		}
+
+		if (text.StartsWith('#'))
+		{
+			var hex = text[1..];
+			if (!uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
+			{
+				return false;
+			}
+
+			parsed = hex.Length switch
+			{
+				6 => Color.FromArgb(255, (int)((value >> 16) & 0xFF), (int)((value >> 8) & 0xFF), (int)(value & 0xFF)),
+				8 => Color.FromArgb((int)((value >> 24) & 0xFF), (int)((value >> 16) & 0xFF), (int)((value >> 8) & 0xFF), (int)(value & 0xFF)),
+				_ => null
+			};
+
+			return parsed is not null;
+		}
+
+		var named = Color.FromName(text);
+
+		// FromName returns an ARGB-zero, non-known colour for anything it does not recognise,
+		// which would otherwise silently paint nothing.
+		if (!named.IsKnownColor)
+		{
+			return false;
+		}
+
+		parsed = named;
+		return true;
+	}
+}
