@@ -13,6 +13,7 @@
     <File Path="Publish.ps1" />
     <File Path="SECURITY.md" />
   </Folder>
+  <Project Path="PanoramicData.ChartMagic.Demo/PanoramicData.ChartMagic.Demo.csproj" />
   <Project Path="PanoramicData.ChartMagic.Test/PanoramicData.ChartMagic.Test.csproj" />
   <Project Path="PanoramicData.ChartMagic/PanoramicData.ChartMagic.csproj" />
 </Solution>

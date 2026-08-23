@@ -1,0 +1,53 @@
+@page "/"
+@using PanoramicData.ChartMagic.Demo.Services
+
+<PageTitle>ChartMagic</PageTitle>
+
+<h1>ChartMagic</h1>
+
+<p class="lead">
+	Charts rendered in your browser by <code>PanoramicData.ChartMagic</code>, running under
+	WebAssembly. Every chart below is generated from a <code>ChartSpecification</code> at page
+	load and inserted as inline SVG &mdash; there is no server and no image file.
+</p>
+
+<p>
+	This page doubles as a scoreboard. Samples are ordered so that what works comes first, and
+	the gaps are plainly visible below. Each caption links the gap to its issue.
+</p>
+
+<div class="status-key">
+	<span class="badge working">Working</span> renders as intended
+	<span class="badge partial">Partial</span> draws, but not everything asked for
+	<span class="badge missing">Not implemented</span> draws nothing
+</div>
+
+@foreach (var sample in SampleCharts.All)
+{
+	<section class="sample">
+		<h2>
+			@sample.Title
+			<span class="badge @BadgeClass(sample.Status)">@BadgeText(sample.Status)</span>
+		</h2>
+		<p class="notes">@sample.Notes</p>
+		<div class="chart">
+			@((MarkupString)SampleCharts.ToSvg(sample.Specification))
+		</div>
+	</section>
+}
+
+@code {
+	private static string BadgeClass(SampleStatus status) => status switch
+	{
+		SampleStatus.Working => "working",
+		SampleStatus.Partial => "partial",
+		_ => "missing"
+	};
+
+	private static string BadgeText(SampleStatus status) => status switch
+	{
+		SampleStatus.Working => "Working",
+		SampleStatus.Partial => "Partial",
+		_ => "Not implemented"
+	};
+}
