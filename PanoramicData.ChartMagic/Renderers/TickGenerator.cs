@@ -26,13 +26,13 @@ internal static class TickGenerator
 
 		var step = interval is > 0
 			? interval.Value
-			: NiceStep((max - min) / Math.Max(targetCount, 1));
+			: NiceStep(max - min, targetCount);
 
 		// Guard against a step so small relative to the range that we would generate
 		// unbounded ticks.
 		if (step <= 0 || (max - min) / step > MaximumTicks)
 		{
-			step = NiceStep((max - min) / Math.Max(targetCount, 1));
+			step = NiceStep(max - min, targetCount);
 		}
 
 		var decimals = DecimalsFor(step);
@@ -91,30 +91,79 @@ internal static class TickGenerator
 	}
 
 	/// <summary>
-	/// Snaps a raw step up to the nearest 1, 2, 2.5 or 5 times a power of ten.
+	/// Chooses the readable step whose tick count comes closest to the target.
 	/// </summary>
-	private static double NiceStep(double rawStep)
+	/// <remarks>
+	/// Snapping the raw step upwards, as this did, is too coarse. A range of 31 with a target
+	/// of eight gives a raw step of 3.9, which snapped up to 5 - correct - but a range of 31
+	/// with a target of six gives 5.2, which snapped up to 10 and halved the number of labels.
+	/// Choosing by resulting tick count instead lands on 5 either way, which is what the
+	/// Microsoft chart control produces for the same data.
+	/// </remarks>
+	internal static double NiceStep(double range, int targetCount)
 	{
-		if (rawStep <= 0)
+		if (range <= 0)
 		{
 			return 1;
 		}
 
-		var exponent = Math.Floor(Math.Log10(rawStep));
-		var magnitude = Math.Pow(10, exponent);
-		var normalised = rawStep / magnitude;
+		var target = Math.Max(targetCount, 2);
+		var exponent = Math.Floor(Math.Log10(range / target));
 
-		foreach (var multiplier in NiceMultipliers)
+		var best = Math.Pow(10, exponent);
+		var bestDistance = double.MaxValue;
+
+		// One decade either side of the estimate is ample: the candidates within it span a
+		// factor of a hundred.
+		for (var power = exponent - 1; power <= exponent + 1; power++)
 		{
-			if (normalised <= multiplier)
+			var magnitude = Math.Pow(10, power);
+			foreach (var multiplier in NiceMultipliers)
 			{
-				return multiplier * magnitude;
+				var step = multiplier * magnitude;
+				var count = range / step;
+				if (count is < 1 or > MaximumTicks)
+				{
+					continue;
+				}
+
+				var distance = Math.Abs(count - target);
+				if (distance < bestDistance)
+				{
+					bestDistance = distance;
+					best = step;
+				}
 			}
 		}
 
-		return 10 * magnitude;
+		return best;
 	}
 
+	/// <summary>
+	/// The smallest multiple of the step strictly greater than the value.
+	/// </summary>
+	/// <remarks>
+	/// Strictly greater, so a data maximum sitting exactly on a tick still gains a step of
+	/// headroom. Measured against DocMagic: a peak of 30 produced an axis to 35, and a peak of
+	/// 32 also produced 35 - which rules out plain rounding up to the next tick, since that
+	/// would have left the first at 30 with the topmost column touching the frame.
+	/// </remarks>
+	internal static double NextStepAbove(double value, double step)
+	{
+		if (step <= 0)
+		{
+			return value;
+		}
+
+		var multiples = Math.Floor(value / step) + 1;
+		return Math.Round(multiples * step, DecimalsFor(step));
+	}
+
+	/// <summary>
+	/// The largest multiple of the step less than or equal to the value.
+	/// </summary>
+	internal static double StepAtOrBelow(double value, double step)
+	=> step <= 0 ? value : Math.Round(Math.Floor(value / step) * step, DecimalsFor(step));
 	/// <summary>
 	/// How many decimal places a tick at this step needs, so that a step of 0.25 labels as
 	/// 0.25 and a step of 20 does not label as 20.00.

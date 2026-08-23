@@ -452,6 +452,59 @@ public class AxisAndColumnTests
 		declarations.Should().Contain("stroke:#000000");
 	}
 
+	[Theory]
+	[InlineData(MarkerStyle.Circle, "circle")]
+	[InlineData(MarkerStyle.Square, "rect")]
+	[InlineData(MarkerStyle.Diamond, "polygon")]
+	[InlineData(MarkerStyle.Triangle, "polygon")]
+	[InlineData(MarkerStyle.Cross, "polygon")]
+	[InlineData(MarkerStyle.Star4, "polygon")]
+	[InlineData(MarkerStyle.Star5, "polygon")]
+	[InlineData(MarkerStyle.Star6, "polygon")]
+	[InlineData(MarkerStyle.Star10, "polygon")]
+	public void EveryMarkerStyle_Renders(MarkerStyle markerStyle, string expectedElement)
+	{
+		// Issue #30: only Circle was implemented and the rest threw, so a chart asking for
+		// square markers failed outright rather than rendering.
+		var specification = new ChartSpecification
+		{
+			SeriesList =
+			[
+				new()
+				{
+					ChartType = SeriesChartType.Line,
+					StrokeColor = Color.SteelBlue,
+					MarkerStyle = markerStyle,
+					MarkerSize = 10,
+					Points = Points(10, 24, 17, 31),
+				}
+			]
+		};
+
+		var document = Render(specification);
+		var defs = document.Descendants().First(e => e.Name.LocalName == "defs");
+
+		Elements(defs, expectedElement).Should().HaveCount(1, "the marker is defined once and reused");
+		Elements(GroupById(document, "series0"), "use").Should().HaveCount(4, "one per point");
+	}
+
+	[Fact]
+	public void MarkerStyleNone_DefinesNoMarker()
+	{
+		var specification = new ChartSpecification
+		{
+			SeriesList =
+			[
+				new() { ChartType = SeriesChartType.Line, StrokeColor = Color.SteelBlue, Points = Points(10, 24, 17, 31) }
+			]
+		};
+
+		var document = Render(specification);
+
+		document.Descendants().First(e => e.Name.LocalName == "defs").Elements().Should().BeEmpty();
+		Elements(GroupById(document, "series0"), "use").Should().BeEmpty();
+	}
+
 	[Fact]
 	public void FontSize_IsEmitted()
 	{
