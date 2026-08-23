@@ -1,4 +1,4 @@
-﻿namespace PanoramicData.ChartMagic.Models;
+namespace PanoramicData.ChartMagic.Models;
 
 public class ChartArea : ChartNamedElement
 {
@@ -36,6 +36,12 @@ public class ChartArea : ChartNamedElement
 			Alignment = AxisAlignment.Left
 		};
 	}
+
+	/// <summary>
+	/// The fraction of a category band that a group of columns or bars occupies, leaving the
+	/// remainder as the gap between one category and the next.
+	/// </summary>
+	public double ColumnBandFillFraction { get; set; } = 0.8;
 
 	public InnerChartArea InnerPlot { get; }
 

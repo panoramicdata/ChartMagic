@@ -10,7 +10,10 @@ internal static class XmlElementExtensions
 			style.Add($"fill:{element.FillColor.ToHex()}");
 			if (element.FillColor.A != 255)
 			{
-				style.Add($"opacity:{(element.FillColor.A / 255f).ToString("F2", CultureInfo.InvariantCulture)}");
+				// Issue #35: fill-opacity, not opacity. The element form fades the stroke along with
+				// the fill, so a translucent background could not keep a solid border - and a
+				// translucent chart background could not show the page through while staying framed.
+				style.Add($"fill-opacity:{(element.FillColor.A / 255f).ToString("F2", CultureInfo.InvariantCulture)}");
 			}
 		}
 		else
