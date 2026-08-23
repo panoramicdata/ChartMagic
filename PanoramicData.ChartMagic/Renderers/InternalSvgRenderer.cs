@@ -174,8 +174,27 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		Color fillColor,
 		double rotationDegrees = 0)
 	{
+		// Vertical alignment is resolved here rather than left to the renderer.
+		//
+		// alignment-baseline is inconsistently supported: browsers largely ignore it on a bare
+		// text element, and the raster path through Svg.Skia ignores it outright, so every label
+		// fell back to the alphabetic baseline and sat higher than intended. Measured against
+		// DocMagic, X axis labels landed at y 341-348 where the reference put them at 348-359.
+		//
+		// Offsetting y by a fraction of the font size instead gives the same result in every
+		// renderer, which is the point: the browser and the PNG have to agree. The fractions are
+		// the usual approximations - an ascent of about four fifths of the em, and a visual
+		// centre about a third of the em above the baseline.
+		var baselineOffset = verticalAlignment switch
+		{
+			VerticalAlignment.Top => fontSize * 0.8,
+			VerticalAlignment.Middle => fontSize * 0.32,
+			VerticalAlignment.Bottom => 0,
+			_ => throw new NotSupportedException($"Unsupported VerticalAlignment {verticalAlignment}.")
+		};
+
 		var roundedX = Math.Round(x, 2);
-		var roundedY = Math.Round(y, 2);
+		var roundedY = Math.Round(y + baselineOffset, 2);
 
 		var textNode = _xmlDocument.CreateElement(string.Empty, "text", string.Empty);
 		textNode.SetAttribute("x", roundedX.ToString(CultureInfo.InvariantCulture));
@@ -189,13 +208,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			HorizontalAlignment.Right => "end",
 			_ => throw new NotSupportedException($"Unsupported HorizontalAlignment {horizontalAlignment}.")
 		});
-		textNode.SetAttribute("alignment-baseline", verticalAlignment switch
-		{
-			VerticalAlignment.Top => "hanging",
-			VerticalAlignment.Middle => "middle",
-			VerticalAlignment.Bottom => "baseline",
-			_ => throw new NotSupportedException($"Unsupported VerticalAlignment {verticalAlignment}.")
-		});
+
 		textNode.SetAttribute("font-weight", fontWeight.ToString().ToLowerInvariant());
 		textNode.SetAttribute("font-size", fontSize.ToString(CultureInfo.InvariantCulture));
 		if (fontFamily is { Length: > 0 })
