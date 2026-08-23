@@ -1,4 +1,4 @@
-namespace PanoramicData.ChartMagic.Renderers;
+﻿namespace PanoramicData.ChartMagic.Renderers;
 
 /// <summary>
 /// Maps data values onto pixel positions inside the inner plot, and answers the questions the
@@ -161,9 +161,28 @@ internal sealed class PlotGeometry
 	internal IReadOnlyList<double> Categories => _categories;
 
 	/// <summary>
-	/// The width of one category band, or zero when the axis is not categorical.
+	/// The number of intervals the category axis is divided into: one more than there are
+	/// categories.
 	/// </summary>
-	internal double BandWidth => IsCategorical && _categories.Count > 0 ? Width / _categories.Count : 0;
+	/// <remarks>
+	/// Not a rounding detail - it is where the categories sit. Dividing the axis by the number
+	/// of categories and centring each in its share puts half an interval of padding at each
+	/// end; dividing by one more and placing category i at interval i+1 puts a whole interval of
+	/// padding at each end, which is what the renderer this matches does.
+	///
+	/// Measured rather than reasoned about: over an inner plot 488 pixels wide with seven
+	/// categories, the other renderer spaced them 61 pixels apart starting 61 pixels in
+	/// (488 / 8), where dividing by seven gives 70. The same 61 was measured for a column chart
+	/// and for a line chart with markers, so it is a property of the category axis rather than of
+	/// either chart type. Column groups were therefore drawn up to 27 pixels away from where they
+	/// belonged, and proportionally wider with it.
+	/// </remarks>
+	private int CategoryIntervalCount => _categories.Count + 1;
+
+	/// <summary>
+	/// The width of one category interval, or zero when the axis is not categorical.
+	/// </summary>
+	internal double BandWidth => IsCategorical && _categories.Count > 0 ? Width / CategoryIntervalCount : 0;
 
 	/// <summary>
 	/// Whether this chart type occupies a band of the axis rather than a single position.
@@ -194,7 +213,7 @@ internal sealed class PlotGeometry
 	/// vertical for bars.
 	/// </summary>
 	internal double CategoryBandExtent => IsCategorical && _categories.Count > 0
-		? (IsHorizontalPlot ? Height : Width) / _categories.Count
+		? (IsHorizontalPlot ? Height : Width) / CategoryIntervalCount
 		: 0;
 
 	/// <summary>
@@ -208,7 +227,7 @@ internal sealed class PlotGeometry
 			index = 0;
 		}
 
-		return Math.Round((index + 0.5) * CategoryBandExtent, 2);
+		return Math.Round((index + 1) * CategoryBandExtent, 2);
 	}
 
 	/// <summary>
@@ -246,7 +265,7 @@ internal sealed class PlotGeometry
 				index = 0;
 			}
 
-			return Math.Round((index + 0.5) * BandWidth, 2);
+			return Math.Round((index + 1) * BandWidth, 2);
 		}
 
 		return _xDisplayRange == 0
