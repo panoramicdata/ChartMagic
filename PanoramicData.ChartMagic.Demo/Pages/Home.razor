@@ -16,6 +16,13 @@
 	the gaps are plainly visible below. Each caption links the gap to its issue.
 </p>
 
+<p class="notes">
+	Every chart is drawn on a deliberately translucent background, so the stripes behind it are
+	the page showing through. Each one is also rendered twice, in light and dark colours, and the
+	stylesheet shows whichever matches your colour scheme &mdash; the renderer writes concrete
+	colours into the SVG, so a single render cannot follow the page.
+</p>
+
 <div class="status-key">
 	<span class="badge working">Working</span> renders as intended
 	<span class="badge partial">Partial</span> draws, but not everything asked for
@@ -31,7 +38,12 @@
 		</h2>
 		<p class="notes">@sample.Notes</p>
 		<div class="chart">
-			@((MarkupString)SampleCharts.ToSvg(sample.Specification))
+			<div class="light-only">
+				@((MarkupString)SampleCharts.ToSvg(sample.Specification, ChartTheme.Light))
+			</div>
+			<div class="dark-only">
+				@((MarkupString)SampleCharts.ToSvg(sample.Specification, ChartTheme.Dark))
+			</div>
 		</div>
 	</section>
 }
