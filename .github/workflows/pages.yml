@@ -29,7 +29,7 @@ jobs:
     # Pages serves the site from a repository subdirectory, so the base href has to match or
     # every asset request 404s.
     - name: Rewrite base href for the Pages subdirectory
-      run: sed -i 's|<base href="/" />|<base href="/ChartMagic/" />|g' release/wwwroot/index.html
+      run: sed -i 's|<base href="/" />|<base href="/PanoramicData.ChartMagic/" />|g' release/wwwroot/index.html
 
     # Blazor routing is client-side, so a deep link has to be served the same document.
     - name: Copy index.html to 404.html

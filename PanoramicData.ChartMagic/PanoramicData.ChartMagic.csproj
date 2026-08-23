@@ -10,8 +10,8 @@
     <Description>ChartMagic: A .NET 9 library for advanced chart rendering and manipulation.</Description>
     <PackageTags>ChartMagic;chart;graphics;svg;rendering;visualization</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/panoramicdata/ChartMagic</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/panoramicdata/ChartMagic</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/panoramicdata/PanoramicData.ChartMagic</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/panoramicdata/PanoramicData.ChartMagic</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageIcon>Panoramic Data.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
