@@ -416,6 +416,28 @@ public static class SpecificationEditor
 	}
 
 	/// <summary>
+	/// Whether a property still holds the value a fresh specification would.
+	/// </summary>
+	public static bool IsDefault(ChartSpecification specification, string name)
+	{
+		ArgumentNullException.ThrowIfNull(specification);
+
+		var property = Properties.FirstOrDefault(p => p.Name == name);
+		return property is not null
+			&& Equals(Format(property.GetValue(specification)), Format(property.GetValue(new ChartSpecification())));
+	}
+
+	/// <summary>
+	/// Sets a property to a typed value, bypassing the text parsing.
+	/// </summary>
+	public static void WriteValue(ChartSpecification specification, string name, object value)
+	{
+		ArgumentNullException.ThrowIfNull(specification);
+
+		Properties.FirstOrDefault(p => p.Name == name && p.CanWrite)?.SetValue(specification, value);
+	}
+
+	/// <summary>
 	/// Puts one property back to the value a fresh specification would carry.
 	/// </summary>
 	public static bool ResetToDefault(ChartSpecification specification, string name)
