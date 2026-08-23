@@ -582,7 +582,9 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			: TickGenerator.Linear(
 				geometry.YDisplayStart,
 				geometry.YDisplayEnd,
-				chart.ChartArea.YAxis.Interval,
+				// The interval the bounds were derived from, so the labels land on the bounds
+				// rather than being chosen again from the adjusted range.
+				chart.ChartArea.YAxis.Interval ?? geometry.ValueAxisInterval,
 				chart.ChartArea.YAxis.TargetTickCount);
 	}
 
@@ -696,23 +698,11 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 			// Add markers to defs if required
 			var seriesMarkerId = $"series{seriesIndex}Marker";
-			switch (series.MarkerStyle)
+			var markerDefinition = CreateMarkerDefinition(series, seriesMarkerId);
+			if (markerDefinition is not null)
 			{
-				case MarkerStyle.Circle:
-					var circleDef = _xmlDocument.CreateElement(string.Empty, "circle", string.Empty);
-					circleDef.SetAttribute("id", seriesMarkerId);
-					circleDef.SetAttribute("r", (series.MarkerSize is not null ? series.MarkerSize : series.StrokeWidth).ToString());
-					circleDef.SetAttribute("fill", $"{(series.MarkerFillColor ?? series.FillColor).ToHex()}");
-					circleDef.SetAttribute("stroke", $"{(series.MarkerStrokeColor ?? series.StrokeColor).ToHex()}");
-					circleDef.SetAttribute("stroke-width", $"{series.MarkerStrokeWidth ?? series.StrokeWidth}");
-					defs.AppendChild(circleDef);
-					break;
-				case MarkerStyle.None:
-					break;
-				default:
-					throw new NotSupportedException($"Marker type {series.MarkerStyle} is not supported.");
+				defs.AppendChild(markerDefinition);
 			}
-
 			var stackDictionary = series.ChartType switch
 			{
 				SeriesChartType.StackedColumn => stackedColumnDictionary,
@@ -1167,6 +1157,126 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	}
 
 	private static double ToRadians(double degrees) => degrees * Math.PI / 180;
+
+	/// <summary>
+	/// Builds the marker shape for a series, centred on the origin so that a single definition can
+	/// be placed at each point by translation alone.
+	/// </summary>
+	/// <remarks>
+	/// Issue #30: only Circle was implemented, and every other value of the enum threw
+	/// NotSupportedException - so a chart asking for square markers failed outright rather than
+	/// rendering. The sizes follow the Microsoft chart control convention that marker size is the
+	/// full width of the marker, not its radius.
+	/// </remarks>
+	private XmlElement? CreateMarkerDefinition(Series series, string id)
+	{
+		if (series.MarkerStyle == MarkerStyle.None)
+		{
+			return null;
+		}
+
+		// The Microsoft control treats marker size as the overall width; a circle takes half of
+		// it as its radius, which is what the original Circle case did with StrokeWidth.
+		var size = series.MarkerSize ?? series.StrokeWidth * 2;
+		var half = size / 2;
+
+		var fill = (series.MarkerFillColor ?? series.FillColor).ToHex();
+		var stroke = (series.MarkerStrokeColor ?? series.StrokeColor).ToHex();
+		var strokeWidth = (series.MarkerStrokeWidth ?? series.StrokeWidth).ToString(CultureInfo.InvariantCulture);
+
+		XmlElement node;
+		switch (series.MarkerStyle)
+		{
+			case MarkerStyle.Circle:
+				node = _xmlDocument.CreateElement(string.Empty, "circle", string.Empty);
+				node.SetAttribute("r", N(half));
+				break;
+
+			case MarkerStyle.Square:
+				node = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
+				node.SetAttribute("x", N(-half));
+				node.SetAttribute("y", N(-half));
+				node.SetAttribute("width", N(size));
+				node.SetAttribute("height", N(size));
+				break;
+
+			case MarkerStyle.Diamond:
+				node = Polygon([(0, -half), (half, 0), (0, half), (-half, 0)]);
+				break;
+
+			case MarkerStyle.Triangle:
+				// Centred on its centroid rather than its bounding box, so it sits on the point
+				// the way the other shapes do.
+				node = Polygon([(0, -half), (half, half * 0.6), (-half, half * 0.6)]);
+				break;
+
+			case MarkerStyle.Cross:
+				// A plus sign of the same width as the other markers, one third of it thick.
+				var arm = half / 3;
+				node = Polygon(
+				[
+					(-arm, -half), (arm, -half), (arm, -arm), (half, -arm),
+					(half, arm), (arm, arm), (arm, half), (-arm, half),
+					(-arm, arm), (-half, arm), (-half, -arm), (-arm, -arm)
+				]);
+				break;
+
+			case MarkerStyle.Star4:
+				node = Star(4, half);
+				break;
+
+			case MarkerStyle.Star5:
+				node = Star(5, half);
+				break;
+
+			case MarkerStyle.Star6:
+				node = Star(6, half);
+				break;
+
+			case MarkerStyle.Star10:
+				node = Star(10, half);
+				break;
+
+			default:
+				throw new NotSupportedException($"Marker type {series.MarkerStyle} is not supported.");
+		}
+
+		node.SetAttribute("id", id);
+		node.SetAttribute("fill", fill);
+		node.SetAttribute("stroke", stroke);
+		node.SetAttribute("stroke-width", strokeWidth);
+		return node;
+	}
+
+	/// <summary>
+	/// A closed polygon through the given points, which are relative to the marker centre.
+	/// </summary>
+	private XmlElement Polygon(IReadOnlyList<(double X, double Y)> points)
+	{
+		var node = _xmlDocument.CreateElement(string.Empty, "polygon", string.Empty);
+		node.SetAttribute("points", string.Join(" ", points.Select(p => $"{N(p.X)},{N(p.Y)}")));
+		return node;
+	}
+
+	/// <summary>
+	/// A star with the given number of points, alternating between the outer radius and an inner
+	/// one at 40% of it.
+	/// </summary>
+	private XmlElement Star(int points, double outerRadius)
+	{
+		var innerRadius = outerRadius * 0.4;
+		var vertices = new List<(double X, double Y)>();
+
+		for (var index = 0; index < points * 2; index++)
+		{
+			// Starting at twelve o'clock so a five-pointed star sits upright.
+			var angle = (index * Math.PI / points) - (Math.PI / 2);
+			var radius = index % 2 == 0 ? outerRadius : innerRadius;
+			vertices.Add((radius * Math.Cos(angle), radius * Math.Sin(angle)));
+		}
+
+		return Polygon(vertices);
+	}
 
 	private XmlElement GetGroup(ChartNamedElement element, string id)
 	{

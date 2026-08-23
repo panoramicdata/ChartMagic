@@ -71,7 +71,7 @@ public class AxisArea(IChartElement parent, string name) : ChartNamedElement(par
 	/// <summary>
 	/// Roughly how many tick marks to aim for when no explicit <see cref="Interval"/> is given.
 	/// </summary>
-	public int TargetTickCount { get; set; } = 6;
+	public int TargetTickCount { get; set; } = 8;
 
 	/// <summary>
 	/// Whether large tick labels are abbreviated - 1.5k rather than 1500.

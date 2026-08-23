@@ -55,22 +55,7 @@ internal sealed class PlotGeometry
 		// horizontal and rendered with its axes swapped.
 		IsHorizontalPlot = bandedSeries.Count > 0 && bandedSeries.TrueForAll(s => IsHorizontal(s.ChartType));
 
-		// A column or bar is read by its length, so its axis has to start at zero: an axis
-		// starting at the smallest data value makes 26 look twice 22. It also puts the origin
-		// off the plot, which is what drew the first stacked segment below the plot floor and
-		// over the category labels. An explicit minimum from the caller still wins.
-		if (bandedSeries.Count > 0 && chart.ChartArea.YAxis.Min is null && _yDisplayStart > 0)
-		{
-			var end = _yDisplayStart + _yDisplayRange;
-			_yDisplayStart = 0;
-			_yDisplayRange = end;
-		}
-
-		if (bandedSeries.Count > 0 && chart.ChartArea.YAxis.Max is null && _yDisplayStart + _yDisplayRange < 0)
-		{
-			_yDisplayRange = -_yDisplayStart;
-		}
-
+		// The categories, in the order they will be laid out, and their labels.
 		foreach (var point in chart.Series.SelectMany(s => s.Points))
 		{
 			if (!_categoryLabels.ContainsKey(point.XValue) && point.XValueString is not null)
@@ -86,6 +71,39 @@ internal sealed class PlotGeometry
 
 		_categories.Sort();
 
+		// The displayed value range, matching what the Microsoft chart control chooses.
+		//
+		// Measured against DocMagic across four data sets: its value axis is zero-based and runs
+		// to the next multiple of the interval strictly above the data maximum. A peak of 30
+		// gave an axis to 35, a peak of 32 also gave 35, and a peak of 280 gave 300 - so it is
+		// not plain rounding up to the next tick, which would have left the first at 30 with the
+		// tallest column touching the frame.
+		//
+		// This applies to every chart type, not only columns. The line case looked close on a
+		// pixel count purely because a thin line covers few pixels: its axis ran 11.5 to 30.75
+		// against DocMagic 0 to 35, which is not close at all.
+		if (!YIsLogarithmic)
+		{
+			var dataMinimum = axisHandlerResult.MinY ?? 0;
+			var dataMaximum = axisHandlerResult.MaxY ?? 0;
+			var provisionalRange = Math.Max(Math.Abs(dataMaximum), Math.Abs(dataMinimum));
+			ValueAxisInterval = TickGenerator.NiceStep(
+				provisionalRange > 0 ? provisionalRange : 1,
+				chart.ChartArea.YAxis.TargetTickCount);
+
+			if (chart.ChartArea.YAxis.Min is null)
+			{
+				// Zero-based unless the data goes below zero, in which case the axis extends down
+				// to a whole interval instead.
+				_yDisplayStart = dataMinimum >= 0
+					? 0
+					: -TickGenerator.NextStepAbove(-dataMinimum, ValueAxisInterval.Value);
+			}
+
+			var end = chart.ChartArea.YAxis.Max
+				?? TickGenerator.NextStepAbove(dataMaximum, ValueAxisInterval.Value);
+			_yDisplayRange = end - _yDisplayStart;
+		}
 		// Logarithmic bounds are snapped out to whole decades, so the axis reads
 		// 1, 10, 100 rather than starting partway up a decade.
 		YIsLogarithmic = chart.ChartArea.YAxis.IsLogarithmic;
@@ -121,6 +139,12 @@ internal sealed class PlotGeometry
 
 	/// <summary>Whether the category axis runs vertically, as it does for bar charts.</summary>
 	internal bool IsHorizontalPlot { get; }
+
+	/// <summary>
+	/// The interval the value axis was laid out with, so the tick labels use the same one the
+	/// bounds were derived from rather than choosing again from the adjusted range.
+	/// </summary>
+	internal double? ValueAxisInterval { get; private set; }
 
 	internal double XDisplayStart { get; }
 
