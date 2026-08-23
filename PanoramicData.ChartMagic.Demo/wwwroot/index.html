@@ -27,6 +27,36 @@
         <a href="." class="reload">Reload</a>
         <span class="dismiss">🗙</span>
     </div>
+    <script>
+        // The theme is applied before Blazor boots, so the page does not flash the wrong
+        // colours while the runtime downloads. Every storage access is guarded: a private
+        // window, or a browser set to block site data, throws rather than returning null.
+        window.chartMagicDemo = {
+            key: "chartmagic-theme",
+            getTheme: function () {
+                try {
+                    return localStorage.getItem(this.key) || "auto";
+                } catch (e) {
+                    return "auto";
+                }
+            },
+            setTheme: function (mode) {
+                try {
+                    localStorage.setItem(this.key, mode);
+                } catch (e) {
+                    // Nothing to do: the choice simply will not persist.
+                }
+
+                if (mode === "light" || mode === "dark") {
+                    document.documentElement.setAttribute("data-theme", mode);
+                } else {
+                    document.documentElement.removeAttribute("data-theme");
+                }
+            }
+        };
+
+        window.chartMagicDemo.setTheme(window.chartMagicDemo.getTheme());
+    </script>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
 </body>
 

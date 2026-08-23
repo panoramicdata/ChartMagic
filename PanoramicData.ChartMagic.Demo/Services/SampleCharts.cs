@@ -150,7 +150,7 @@ public static class SampleCharts
 			WithAxes(BuildMultiSeries(SeriesChartType.Bar), "Percent", "Day")),
 
 		new(
-			"Axis titles, gridlines and rotated labels",
+			"Axis furniture",
 			"Axis titles on both axes, major and minor gridlines, and category labels rotated "
 			+ "45 degrees. All four were accepted and silently discarded before issue #31.",
 			SampleStatus.Working,
@@ -183,7 +183,83 @@ public static class SampleCharts
 			WithAxes(BuildMultiSeries(SeriesChartType.StackedArea), "Day", "Percent")),
 
 		new(
-			"Hundred-percent stacked column",
+			"Marker styles",
+			"Every marker style the enum declares, one series each. Until recently only Circle "
+			+ "was implemented and the rest threw, so a chart asking for squares failed outright.",
+			SampleStatus.Working,
+			BuildMarkerGallery()),
+
+		new(
+			"Explicit range",
+			"An axis minimum and maximum given outright, which is honoured exactly rather than "
+			+ "adjusted. This is what a dynamic Y axis computes.",
+			SampleStatus.Working,
+			WithRange(WithAxes(Build(SeriesChartType.Line, markers: true), "Day", "Percent"), 5, 40)),
+
+		new(
+			"Gridlines",
+			"Major gridlines on both axes and minor gridlines on the value axis, each in its own "
+			+ "colour.",
+			SampleStatus.Working,
+			BuildGridlines()),
+
+		new(
+			"Labels at 90 degrees",
+			"Category labels rotated a quarter turn, the usual treatment when the labels are "
+			+ "longer than the band is wide.",
+			SampleStatus.Working,
+			WithLabelAngle(WithAxes(BuildLongCategories(), "Region", "Sales"), -90)),
+
+		new(
+			"Label format",
+			"An explicit format string on the value axis, so the numbers carry a decimal place "
+			+ "and a thousands separator.",
+			SampleStatus.Working,
+			BuildFormatted()),
+
+		new(
+			"Legend at the side",
+			"The legend as a column on the right, which is what a narrow legend needs once there "
+			+ "are more than two or three series.",
+			SampleStatus.Working,
+			WithLegendColumn(WithAxes(BuildMultiSeries(SeriesChartType.Column), "Day", "Percent"))),
+
+		new(
+			"Legend below",
+			"The legend as a row beneath the plot, with the chart area shortened to make room. "
+			+ "Positions are percentages of the image, measured from the bottom left.",
+			SampleStatus.Working,
+			WithLegendBelow(WithAxes(BuildMultiSeries(SeriesChartType.Column), "Day", "Percent"))),
+
+		new(
+			"Doughnut, 30% hole",
+			"The hole radius given explicitly rather than left at the 60% default.",
+			SampleStatus.Working,
+			WithDoughnutHole(BuildPie(SeriesChartType.Doughnut), 30)),
+
+		new(
+			"Negative values",
+			"A series crossing zero. The axis extends below it by a whole interval, and the "
+			+ "columns are drawn from the zero line in both directions.",
+			SampleStatus.Working,
+			WithAxes(BuildNegative(), "Month", "Net change")),
+
+		new(
+			"A single data point",
+			"One point, which is the degenerate case that tends to divide by zero somewhere.",
+			SampleStatus.Working,
+			WithAxes(BuildSinglePoint(), "Day", "Percent")),
+
+		new(
+			"Many categories",
+			"Twenty-four categories, enough that the labels crowd. Thinning them out when they "
+			+ "no longer fit is not implemented, so they overlap - visible here rather than "
+			+ "discovered later.",
+			SampleStatus.Partial,
+			WithLabelAngle(WithAxes(BuildManyCategories(), "Hour", "Requests"), -45)),
+
+		new(
+			"100% stacked column",
 			"Deliberately still blank. Rendering these needs the value axis rescaled to 0-100 "
 			+ "per category, which is not wired up, and a chart showing plausible but wrong "
 			+ "proportions would be worse than one showing nothing. Issue #33.",
@@ -193,7 +269,8 @@ public static class SampleCharts
 		new(
 			"Pie",
 			"One series, one slice per point, coloured per point. Angles run clockwise from "
-			+ "twelve o'clock, and the labels show each value.",
+			+ "three o'clock, as the Microsoft chart control does, and each slice is labelled "
+			+ "with its category name.",
 			SampleStatus.Working,
 			BuildPie(SeriesChartType.Pie)),
 
@@ -205,7 +282,7 @@ public static class SampleCharts
 			BuildPie(SeriesChartType.Doughnut)),
 
 		new(
-			"Pie with outside labels and a collected slice",
+			"Pie, outside labels",
 			"Labels outside on leader lines, showing each slice as a percentage. The two "
 			+ "smallest slices fall below a 15% threshold and are combined into one.",
 			SampleStatus.Working,
@@ -287,6 +364,237 @@ public static class SampleCharts
 		}
 
 		return specification;
+	}
+
+	private static ChartSpecification WithRange(ChartSpecification specification, double minimum, double maximum)
+	{
+		specification.YAxisMinimum = minimum;
+		specification.YAxisMaximum = maximum;
+		return specification;
+	}
+
+	private static ChartSpecification WithLabelAngle(ChartSpecification specification, int degrees)
+	{
+		specification.XAxisLabelAngle = degrees;
+		return specification;
+	}
+
+	private static ChartSpecification WithDoughnutHole(ChartSpecification specification, int percent)
+	{
+		specification.DoughnutRadius = percent;
+		return specification;
+	}
+
+	/// <summary>
+	/// The legend as a column on the right. Positions are percentages of the image measured from
+	/// the bottom left, so a full-height legend on the right is x 78, y 0.
+	/// </summary>
+	private static ChartSpecification WithLegendColumn(ChartSpecification specification)
+	{
+		specification.LegendStyle = LegendStyle.Column;
+		specification.LegendXPositionPercent = 78;
+		specification.LegendYPositionPercent = 0;
+		specification.LegendWidthPercent = 22;
+		specification.LegendHeightPercent = 100;
+		specification.ChartAreaWidthPercent = 78;
+		return specification;
+	}
+
+	private static ChartSpecification WithLegendBelow(ChartSpecification specification)
+	{
+		specification.LegendStyle = LegendStyle.Row;
+		specification.LegendXPositionPercent = 0;
+		specification.LegendYPositionPercent = 0;
+		specification.LegendWidthPercent = 100;
+		specification.LegendHeightPercent = 16;
+		specification.ChartAreaXPositionPercent = 0;
+		specification.ChartAreaYPositionPercent = 16;
+		specification.ChartAreaWidthPercent = 100;
+		specification.ChartAreaHeightPercent = 84;
+		return specification;
+	}
+
+	private static ChartSpecification BuildMarkerGallery()
+	{
+		var styles = new[]
+		{
+			MarkerStyle.Circle,
+			MarkerStyle.Square,
+			MarkerStyle.Diamond,
+			MarkerStyle.Triangle,
+			MarkerStyle.Cross,
+			MarkerStyle.Star4,
+			MarkerStyle.Star5,
+			MarkerStyle.Star6
+		};
+		var colours = new[]
+		{
+			Color.SteelBlue,
+			Color.SeaGreen,
+			Color.Goldenrod,
+			Color.IndianRed,
+			Color.MediumPurple,
+			Color.DarkCyan,
+			Color.Chocolate,
+			Color.SlateGray
+		};
+
+		var specification = new ChartSpecification { LegendStyle = LegendStyle.Column };
+		WithLegendColumn(specification);
+
+		for (var index = 0; index < styles.Length; index++)
+		{
+			// One flat series per style, stacked up the plot, so each marker is on its own line
+			// and can be told apart.
+			var level = 4 + (index * 4);
+			specification.SeriesList.Add(new SeriesSpecification
+			{
+				ChartType = SeriesChartType.Line,
+				LegendText = styles[index].ToString(),
+				StrokeColor = colours[index],
+				StrokeWidth = 2,
+				IsXValueIndexed = true,
+				MarkerStyle = styles[index],
+				MarkerSize = 12,
+				MarkerFillColor = Color.White,
+				MarkerStrokeColor = colours[index],
+				MarkerStrokeWidth = 2,
+				Points = Points(level, level, level, level, level)
+			});
+		}
+
+		return WithAxes(specification, "Point", "Series");
+	}
+
+	private static ChartSpecification BuildGridlines()
+	{
+		var specification = WithAxes(BuildMultiSeries(SeriesChartType.Line), "Day", "Percent");
+		specification.XAxisMajorGridEnabled = true;
+		specification.YAxisMajorGridEnabled = true;
+		specification.YAxisMinorGridEnabled = true;
+		specification.XAxisMajorGridColor = Color.FromArgb(0xC0, 0xC8, 0xD0);
+		specification.YAxisMajorGridColor = Color.FromArgb(0xC0, 0xC8, 0xD0);
+		specification.YAxisMinorGridColor = Color.FromArgb(0xE8, 0xEC, 0xF0);
+		specification.LegendStyle = LegendStyle.Column;
+		WithLegendColumn(specification);
+		return specification;
+	}
+
+	private static ChartSpecification BuildFormatted()
+	{
+		var specification = new ChartSpecification
+		{
+			YAxisLabelFormat = "#,##0.0",
+			SeriesList =
+			[
+				new()
+				{
+					ChartType = SeriesChartType.Column,
+					LegendText = "Requests",
+					StrokeColor = Color.SteelBlue,
+					FillColor = Color.SteelBlue,
+					StrokeWidth = 1,
+					IsXValueIndexed = true,
+					Points = Points(1240, 1890, 1410, 2260, 2610, 2130, 3020)
+				}
+			]
+		};
+
+		return WithAxes(specification, "Day", "Requests");
+	}
+
+	private static ChartSpecification BuildLongCategories()
+	{
+		var regions = new[] { "North West", "North East", "Midlands", "South West", "South East" };
+		var values = new double[] { 42, 31, 55, 28, 61 };
+
+		return new ChartSpecification
+		{
+			SeriesList =
+			[
+				new()
+				{
+					ChartType = SeriesChartType.Column,
+					LegendText = "Sales",
+					StrokeColor = Color.SeaGreen,
+					FillColor = Color.SeaGreen,
+					StrokeWidth = 1,
+					IsXValueIndexed = true,
+					Points = [.. values.Select((value, i) => new ChartPoint(regions[i], i, value))]
+				}
+			]
+		};
+	}
+
+	private static ChartSpecification BuildNegative()
+	{
+		var months = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun" };
+		var values = new double[] { 18, -7, 12, -14, 4, 21 };
+
+		return new ChartSpecification
+		{
+			SeriesList =
+			[
+				new()
+				{
+					ChartType = SeriesChartType.Column,
+					LegendText = "Net change",
+					StrokeColor = Color.SteelBlue,
+					FillColor = Color.SteelBlue,
+					StrokeWidth = 1,
+					IsXValueIndexed = true,
+					Points = [.. values.Select((value, i) => new ChartPoint(months[i], i, value))]
+				}
+			]
+		};
+	}
+
+	private static ChartSpecification BuildSinglePoint()
+		=> new()
+		{
+			SeriesList =
+			[
+				new()
+				{
+					ChartType = SeriesChartType.Column,
+					LegendText = "Utilisation",
+					StrokeColor = Color.Goldenrod,
+					FillColor = Color.Goldenrod,
+					StrokeWidth = 1,
+					IsXValueIndexed = true,
+					Points = [new ChartPoint("Mon", 0, 42)]
+				}
+			]
+		};
+
+	private static ChartSpecification BuildManyCategories()
+	{
+		var points = new List<ChartPoint>();
+		for (var hour = 0; hour < 24; hour++)
+		{
+			// A plausible daily shape: quiet overnight, busy through the working day.
+			var value = 40 + (60 * Math.Sin(Math.Max(0, hour - 5) / 14.0 * Math.PI));
+			points.Add(new ChartPoint(
+				FormattableString.Invariant($"{hour:00}:00"),
+				hour,
+				Math.Round(Math.Max(8, value))));
+		}
+
+		return new ChartSpecification
+		{
+			SeriesList =
+			[
+				new()
+				{
+					ChartType = SeriesChartType.Line,
+					LegendText = "Requests",
+					StrokeColor = Color.IndianRed,
+					StrokeWidth = 2,
+					IsXValueIndexed = true,
+					Points = points
+				}
+			]
+		};
 	}
 
 	private static ChartSpecification BuildPie(SeriesChartType chartType)
