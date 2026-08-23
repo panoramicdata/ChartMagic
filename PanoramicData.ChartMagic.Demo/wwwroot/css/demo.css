@@ -63,3 +63,67 @@ h1 { margin-bottom: 0.25rem; }
 }
 
 .chart svg { display: block; max-width: 100%; height: auto; }
+
+/*
+ * Styles the markup the Blazor template puts in index.html: the boot progress ring and the
+ * error banner.
+ *
+ * These rules were in the template's app.css. That file was removed as unused - which was
+ * wrong, because without "display: none" the error banner shows permanently, so a perfectly
+ * healthy page appears to have crashed. It cost a while to spot, having been mistaken for a
+ * real exception on the deployed site.
+ */
+.loading-progress {
+	position: relative;
+	display: block;
+	width: 8rem;
+	height: 8rem;
+	margin: 20vh auto 1rem;
+}
+
+.loading-progress circle {
+	fill: none;
+	stroke: #e0e0e0;
+	stroke-width: 0.6rem;
+	transform-origin: 50% 50%;
+	transform: rotate(-90deg);
+}
+
+.loading-progress circle:last-child {
+	stroke: #1b6ec2;
+	stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8) 500%;
+	transition: stroke-dasharray 0.05s ease-in-out;
+}
+
+.loading-progress-text {
+	position: absolute;
+	text-align: center;
+	inset: calc(20vh + 3.25rem) 0 auto 0;
+	font-weight: 600;
+}
+
+.loading-progress-text::after {
+	content: var(--blazor-load-percentage-text, "Loading");
+}
+
+/* Hidden until Blazor unhides it on an actual unhandled exception. */
+#blazor-error-ui {
+	display: none;
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 1000;
+	padding: 0.7rem 1.25rem 0.7rem 1.25rem;
+	background: #ffebe9;
+	border-top: 1px solid #a40e26;
+	color: #a40e26;
+	box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#blazor-error-ui .dismiss {
+	cursor: pointer;
+	position: absolute;
+	right: 0.75rem;
+	top: 0.5rem;
+}
