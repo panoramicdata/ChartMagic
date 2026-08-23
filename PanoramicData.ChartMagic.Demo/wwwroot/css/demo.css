@@ -527,3 +527,7 @@ h1 { margin-bottom: 0.25rem; }
 	border-radius: 4px;
 	padding: 0.5rem;
 }
+
+.row-reset:disabled { opacity: 0.28; cursor: default; }
+
+.row-reset:disabled:hover { color: var(--ink-muted); border-color: var(--rule); }

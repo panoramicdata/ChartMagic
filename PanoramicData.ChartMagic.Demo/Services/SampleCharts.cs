@@ -105,35 +105,47 @@ public static class SampleCharts
 		return Encoding.UTF8.GetString(stream.ToArray());
 	}
 
+	/// <summary>
+	/// Fills in the theme colours and the sample sizing, without overwriting anything already set.
+	/// </summary>
+	/// <remarks>
+	/// Every assignment is conditional on the property still holding its default, and that is the
+	/// point: these were written unconditionally, so editing XAxisFontSize on the page appeared to
+	/// do nothing - the edit was made and then overwritten at render time by the theme. The same
+	/// silently defeated every colour and the plot geometry. A sample that sets one of these
+	/// deliberately now keeps it too, which it did not before.
+	/// </remarks>
 	private static void Apply(ChartSpecification specification, ChartTheme theme)
 	{
-		specification.ChartBackgroundColor = TranslucentBackground;
-		specification.ChartBorderColor = theme.Border;
-		specification.ChartBorderWidth = 1;
-
-		specification.XAxisLineColor = theme.AxisLine;
-		specification.YAxisLineColor = theme.AxisLine;
-		specification.XAxisMajorGridColor = theme.MajorGrid;
-		specification.YAxisMajorGridColor = theme.MajorGrid;
-		specification.XAxisMinorGridColor = theme.MinorGrid;
-		specification.YAxisMinorGridColor = theme.MinorGrid;
-		specification.AxisLabelColor = theme.AxisLabel;
-		specification.LegendFontColor = theme.AxisLabel;
-
-		// Headroom at the top and right of the plot. The specification defaults put the plot
-		// flush against the top of the chart area, so the topmost axis label - centred on the
-		// plot edge - was cut in half by the edge of the image. Every real report leaves a
-		// margin here for the same reason.
-		specification.InnerPlotYPositionPercent = 12;
-		specification.InnerPlotHeightPercent = 80;
-		specification.InnerPlotWidthPercent = 86;
-
-		// The default 20px axis text is too large for a 720px-wide sample.
-		specification.XAxisFontSize = 12;
-		specification.YAxisFontSize = 12;
-		specification.LegendFontSize = 13;
+		SetIfDefault(specification, nameof(ChartSpecification.ChartBackgroundColor), TranslucentBackground);
+		SetIfDefault(specification, nameof(ChartSpecification.ChartBorderColor), theme.Border);
+		SetIfDefault(specification, nameof(ChartSpecification.ChartBorderWidth), 1);
+		SetIfDefault(specification, nameof(ChartSpecification.XAxisLineColor), theme.AxisLine);
+		SetIfDefault(specification, nameof(ChartSpecification.YAxisLineColor), theme.AxisLine);
+		SetIfDefault(specification, nameof(ChartSpecification.XAxisMajorGridColor), theme.MajorGrid);
+		SetIfDefault(specification, nameof(ChartSpecification.YAxisMajorGridColor), theme.MajorGrid);
+		SetIfDefault(specification, nameof(ChartSpecification.XAxisMinorGridColor), theme.MinorGrid);
+		SetIfDefault(specification, nameof(ChartSpecification.YAxisMinorGridColor), theme.MinorGrid);
+		SetIfDefault(specification, nameof(ChartSpecification.AxisLabelColor), theme.AxisLabel);
+		SetIfDefault(specification, nameof(ChartSpecification.LegendFontColor), theme.AxisLabel);
+		SetIfDefault(specification, nameof(ChartSpecification.InnerPlotYPositionPercent), 12);
+		SetIfDefault(specification, nameof(ChartSpecification.InnerPlotHeightPercent), 80);
+		SetIfDefault(specification, nameof(ChartSpecification.InnerPlotWidthPercent), 86);
+		SetIfDefault(specification, nameof(ChartSpecification.XAxisFontSize), 12d);
+		SetIfDefault(specification, nameof(ChartSpecification.YAxisFontSize), 12d);
+		SetIfDefault(specification, nameof(ChartSpecification.LegendFontSize), 13d);
 	}
 
+	/// <summary>
+	/// Sets a property only where it still holds the value a fresh specification would.
+	/// </summary>
+	private static void SetIfDefault(ChartSpecification specification, string name, object value)
+	{
+		if (SpecificationEditor.IsDefault(specification, name))
+		{
+			SpecificationEditor.WriteValue(specification, name, value);
+		}
+	}
 	/// <summary>
 	/// The gallery, ordered so that what works comes first and the gaps are visible below it.
 	/// </summary>

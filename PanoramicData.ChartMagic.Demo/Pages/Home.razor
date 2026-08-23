@@ -133,11 +133,15 @@
 													break;
 											}
 
-											@if (!property.IsDefault && property.Kind != EditorKind.ReadOnly)
+											@if (property.Kind != EditorKind.ReadOnly)
 											{
-												@* A back-on-itself arrow: this one property goes back to its default. *@
+												@*
+												    A back-on-itself arrow, always present so the column does not shift as values
+												    change, and disabled where there is nothing to undo.
+												*@
 												<button type="button" class="row-reset"
-													title="Reset @property.Name to its default"
+													disabled="@property.IsDefault"
+													title="@(property.IsDefault ? $"{property.Name} is already at its default" : $"Reset {property.Name} to its default")"
 													aria-label="Reset @property.Name to its default"
 													@onclick="() => ResetProperty(state, property.Name)">&#8634;</button>
 											}
