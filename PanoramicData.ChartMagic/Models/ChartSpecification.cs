@@ -1,7 +1,15 @@
 ﻿using System.Drawing;
 
-namespace PanoramicData.ChartMagic.Test.Models;
+namespace PanoramicData.ChartMagic.Models;
 
+/// <summary>
+/// A declarative description of a chart: series, areas, axes, legend and annotations.
+/// Call <see cref="ToChart"/> to turn it into a renderable <see cref="Chart"/>.
+/// </summary>
+/// <remarks>
+/// The defaults here are deliberately non-zero. Chart elements are laid out relative to
+/// their parent, so an element left at zero width or height renders nothing at all.
+/// </remarks>
 public class ChartSpecification
 {
 	public List<SeriesSpecification> SeriesList { get; set; } = [];
@@ -118,7 +126,18 @@ public class ChartSpecification
 	public int PointDepth3dPercent { get; set; }
 	public int PointGapDepth3dPercent { get; set; }
 
-	internal Chart ToChart()
+	/// <summary>
+	/// Builds a <see cref="Chart"/> from this specification, wired up and sized ready to
+	/// render.
+	/// </summary>
+	/// <remarks>
+	/// Issue #29: this was previously internal to the test project, so consumers had to
+	/// assemble the object model by hand with no reference to follow. Two of the assignments
+	/// below are load-bearing and impossible to guess - the root background area must be
+	/// sized, and each series must take its height from the inner plot. Omitting either
+	/// yields a blank chart with no error, which is exactly what happened downstream.
+	/// </remarks>
+	public Chart ToChart()
 	{
 		var chart = new Chart();
 
