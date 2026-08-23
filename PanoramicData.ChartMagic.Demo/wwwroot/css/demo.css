@@ -87,7 +87,8 @@ body {
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 	margin: 0 auto;
 	padding: 2rem 1.5rem 4rem;
-	max-width: 60rem;
+	/* Full page width: the samples pair a chart with a table of properties, and both want room. */
+	max-width: none;
 	color: var(--ink);
 	background: var(--page);
 	line-height: 1.5;
@@ -365,3 +366,22 @@ h1 { margin-bottom: 0.25rem; }
 	vertical-align: 0.35em;
 	font-variant-numeric: tabular-nums;
 }
+
+/* The name column takes only what it needs; the value column takes the rest. */
+.detail-table th[scope="row"] {
+	width: 1%;
+	white-space: nowrap;
+}
+
+.detail-table td { width: auto; white-space: normal; }
+
+/* Section headings within the table, so the columns stay aligned across sections. */
+.detail-table tr.section th {
+	background: var(--rule);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-size: 0.78rem;
+	width: auto;
+}
+
+.detail-table { table-layout: auto; }

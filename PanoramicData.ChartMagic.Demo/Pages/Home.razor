@@ -64,68 +64,70 @@
 					</div>
 
 					<aside class="sample-detail">
-						<h3>ChartSpecification</h3>
-						@if (view.Settings.Count == 0)
-						{
-							<p class="notes">Nothing beyond the defaults.</p>
-						}
-						else
-						{
-							<table class="detail-table">
-								<tbody>
-									@foreach (var setting in view.Settings)
-									{
-										<tr>
-											<th scope="row">@setting.Name</th>
-											<td>@setting.Value</td>
-										</tr>
-									}
-								</tbody>
-							</table>
-						}
-
-						<h3>Series</h3>
-						@foreach (var series in view.Series)
-						{
-							<p class="series-name">@series.Name</p>
-							<table class="detail-table">
-								<tbody>
-									@foreach (var setting in series.Settings)
-									{
-										<tr>
-											<th scope="row">@setting.Name</th>
-											<td>@setting.Value</td>
-										</tr>
-									}
-								</tbody>
-							</table>
-						}
-
-						<h3>Data</h3>
-						<table class="detail-table data-table">
-							<thead>
-								<tr>
-									<th scope="col"></th>
-									@foreach (var name in view.Data.SeriesNames)
-									{
-										<th scope="col">@name</th>
-									}
-								</tr>
-							</thead>
-							<tbody>
-								@foreach (var row in view.Data.Rows)
+						@*
+					    One table for the specification and every series, with colspan heading rows rather
+					    than a table each: separate tables size their columns independently, so the names and
+					    values stopped lining up from one section to the next.
+					*@
+					<table class="detail-table">
+						<tbody>
+							<tr class="section"><th colspan="2">ChartSpecification</th></tr>
+							@if (view.Settings.Count == 0)
+							{
+								<tr><td colspan="2">Nothing beyond the defaults.</td></tr>
+							}
+							else
+							{
+								@foreach (var setting in view.Settings)
 								{
 									<tr>
-										<th scope="row">@row.Category</th>
-										@foreach (var value in row.Values)
-										{
-											<td>@value</td>
-										}
+										<th scope="row">@setting.Name</th>
+										<td>@setting.Value</td>
 									</tr>
 								}
-							</tbody>
-						</table>
-					</aside>
+							}
+
+							@foreach (var series in view.Series)
+							{
+								<tr class="section"><th colspan="2">Series: @series.Name</th></tr>
+								@foreach (var setting in series.Settings)
+								{
+									<tr>
+										<th scope="row">@setting.Name</th>
+										<td>@setting.Value</td>
+									</tr>
+								}
+							}
+						</tbody>
+					</table>
+
+					@*
+					    The data keeps its own table: it has a column per series rather than a name and a
+					    value, so folding it into the one above would align nothing.
+					*@
+					<table class="detail-table data-table">
+						<tbody>
+							<tr class="section"><th colspan="@(view.Data.SeriesNames.Count + 1)">Data</th></tr>
+							<tr>
+								<th></th>
+								@foreach (var name in view.Data.SeriesNames)
+								{
+									<th scope="col">@name</th>
+								}
+							</tr>
+							@foreach (var row in view.Data.Rows)
+							{
+								<tr>
+									<th scope="row">@row.Category</th>
+									@foreach (var value in row.Values)
+									{
+										<td>@value</td>
+									}
+								</tr>
+							}
+						</tbody>
+					</table>
+				</aside>
 				</div>
 			</section>
 		</PDTab>
