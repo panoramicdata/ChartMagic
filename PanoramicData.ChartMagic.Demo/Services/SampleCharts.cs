@@ -117,6 +117,14 @@ public static class SampleCharts
 		specification.AxisLabelColor = theme.AxisLabel;
 		specification.LegendFontColor = theme.AxisLabel;
 
+		// Headroom at the top and right of the plot. The specification defaults put the plot
+		// flush against the top of the chart area, so the topmost axis label - centred on the
+		// plot edge - was cut in half by the edge of the image. Every real report leaves a
+		// margin here for the same reason.
+		specification.InnerPlotYPositionPercent = 12;
+		specification.InnerPlotHeightPercent = 80;
+		specification.InnerPlotWidthPercent = 86;
+
 		// The default 20px axis text is too large for a 720px-wide sample.
 		specification.XAxisFontSize = 12;
 		specification.YAxisFontSize = 12;
