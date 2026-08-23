@@ -385,3 +385,60 @@ h1 { margin-bottom: 0.25rem; }
 }
 
 .detail-table { table-layout: auto; }
+
+/* Editors in the properties table. */
+.editor-table input[type="text"],
+.editor-table input[type="number"],
+.editor-table select {
+	width: 100%;
+	box-sizing: border-box;
+	background: var(--page);
+	color: var(--ink);
+	border: 1px solid var(--rule);
+	border-radius: 3px;
+	font: inherit;
+	font-size: 0.8rem;
+	padding: 0.1rem 0.25rem;
+}
+
+.editor-table td { padding: 0.1rem 0.25rem; }
+
+/* A property still at its default is dimmed, so what the sample sets stands out. */
+.editor-table tr.is-default th,
+.editor-table tr.is-default .read-only {
+	color: var(--ink-muted);
+	font-weight: 400;
+}
+
+.editor-table tr.is-default input,
+.editor-table tr.is-default select {
+	color: var(--ink-muted);
+}
+
+.read-only { font-style: italic; color: var(--ink-muted); }
+
+.reset-button {
+	appearance: none;
+	border: 1px solid var(--rule);
+	background: var(--panel);
+	color: var(--ink);
+	font: inherit;
+	font-size: 0.75rem;
+	padding: 0.15rem 0.6rem;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.edited {
+	font-size: 0.72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--partial-fg);
+}
+
+/* The properties table is long, so it scrolls within the panel rather than the page. */
+.sample-detail {
+	max-height: 80vh;
+	overflow-y: auto;
+}

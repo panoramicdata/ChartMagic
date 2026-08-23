@@ -92,10 +92,13 @@ public static class SampleCharts
 	/// </remarks>
 	public static string ToSvg(ChartSpecification specification, ChartTheme theme)
 	{
-		Apply(specification, theme);
+		// Themed on a copy. The caller owns this specification and may be editing it live, so
+		// writing theme colours into it would show them back as though the user had set them.
+		var themed = SpecificationEditor.Clone(specification);
+		Apply(themed, theme);
 
 		using var stream = new MemoryStream();
-		specification
+		themed
 			.ToChart()
 			.SaveImage(stream, ChartImageFormat.Svg, Width, Height);
 
@@ -267,6 +270,38 @@ public static class SampleCharts
 			WithLabelAngle(WithAxes(BuildManyCategories(), "Hour", "Requests"), -45)),
 
 		new(
+			"Stacked bar",
+			"Horizontal bars stacked within each category.",
+			SampleStatus.Working,
+			WithAxes(BuildMultiSeries(SeriesChartType.StackedBar), "Percent", "Day")),
+
+		new(
+			"Column and line",
+			"A column series and a line series in one plot, both following the same category "
+			+ "mapping so they stay aligned.",
+			SampleStatus.Working,
+			BuildMixed()),
+
+		new(
+			"Pie, no labels",
+			"Slice labels turned off, leaving the legend to name them.",
+			SampleStatus.Working,
+			WithPieLabels(BuildPie(SeriesChartType.Pie), "Disabled")),
+
+		new(
+			"Doughnut, outside labels",
+			"A ring with its labels outside on leader lines.",
+			SampleStatus.Working,
+			WithPieLabels(BuildPie(SeriesChartType.Doughnut), "Outside")),
+
+		new(
+			"Point",
+			"One of the chart types the enum declares and the renderer has no case for, so it "
+			+ "draws nothing. Issue #33 tracks the remainder.",
+			SampleStatus.NotImplemented,
+			WithAxes(BuildMultiSeries(SeriesChartType.Point), "Day", "Percent")),
+
+		new(
 			"100% stacked column",
 			"Deliberately still blank. Rendering these needs the value axis rescaled to 0-100 "
 			+ "per category, which is not wired up, and a chart showing plausible but wrong "
@@ -372,6 +407,47 @@ public static class SampleCharts
 		}
 
 		return specification;
+	}
+
+	private static ChartSpecification WithPieLabels(ChartSpecification specification, string style)
+	{
+		specification.PieLabelStyle = style;
+		return specification;
+	}
+
+	private static ChartSpecification BuildMixed()
+	{
+		var specification = new ChartSpecification
+		{
+			SeriesList =
+			[
+				new()
+				{
+					ChartType = SeriesChartType.Column,
+					LegendText = "Volume",
+					StrokeColor = Color.SteelBlue,
+					FillColor = Color.SteelBlue,
+					StrokeWidth = 1,
+					IsXValueIndexed = true,
+					Points = Points(12, 19, 14, 22, 26, 21, 30)
+				},
+				new()
+				{
+					ChartType = SeriesChartType.Line,
+					LegendText = "Target",
+					StrokeColor = Color.IndianRed,
+					StrokeWidth = 3,
+					IsXValueIndexed = true,
+					MarkerStyle = MarkerStyle.Circle,
+					MarkerFillColor = Color.White,
+					MarkerStrokeColor = Color.IndianRed,
+					MarkerSize = 6,
+					Points = Points(18, 18, 18, 20, 20, 22, 22)
+				}
+			]
+		};
+
+		return WithAxes(specification, "Day", "Percent");
 	}
 
 	private static ChartSpecification WithRange(ChartSpecification specification, double minimum, double maximum)

@@ -1,6 +1,6 @@
+@page "/"
 @using System.Reflection
 @using PanoramicData.ChartMagic.Models
-@page "/"
 @inject IJSRuntime JS
 
 <PageTitle>ChartMagic</PageTitle>
@@ -28,10 +28,10 @@
 </header>
 
 <p class="notes">
-	Each tab holds one sample: the chart, then the <code>ChartSpecification</code> properties it
-	sets and the data behind it. Both are read from the specification that produced the chart, so
-	they cannot drift from what you are looking at. Every chart is drawn on a deliberately
-	translucent background, so the stripes showing through are the page.
+	Each tab holds one sample. Every property of the <code>ChartSpecification</code> is listed
+	beside the chart and can be edited: the chart redraws as you change it. Properties still at
+	their default are dimmed, so what the sample actually sets stands out. <strong>Reset</strong>
+	puts the sample back.
 </p>
 
 <div class="status-key">
@@ -44,90 +44,122 @@
 	@foreach (var sample in _samples)
 	{
 		<PDTab Title="@sample.Title">
+			@{
+				var state = StateFor(sample);
+			}
 			<section class="sample">
 				<h2>
 					@sample.Title
 					<span class="badge @BadgeClass(sample.Status)">@BadgeText(sample.Status)</span>
+					<button type="button" class="reset-button" @onclick="() => Reset(sample.Title)">Reset</button>
+					@if (state.IsEdited)
+					{
+						<span class="edited">edited</span>
+					}
 				</h2>
 				<p class="notes">@sample.Notes</p>
-
-				@{
-					var view = View(sample);
-				}
 
 				<div class="sample-body">
 					<div class="sample-chart">
 						<div class="chart">
-							<div class="light-only">@((MarkupString)view.LightSvg)</div>
-							<div class="dark-only">@((MarkupString)view.DarkSvg)</div>
+							<div class="light-only">@((MarkupString)LightSvg(state))</div>
+							<div class="dark-only">@((MarkupString)DarkSvg(state))</div>
 						</div>
 					</div>
 
 					<aside class="sample-detail">
 						@*
-					    One table for the specification and every series, with colspan heading rows rather
-					    than a table each: separate tables size their columns independently, so the names and
-					    values stopped lining up from one section to the next.
-					*@
-					<table class="detail-table">
-						<tbody>
-							<tr class="section"><th colspan="2">ChartSpecification</th></tr>
-							@if (view.Settings.Count == 0)
-							{
-								<tr><td colspan="2">Nothing beyond the defaults.</td></tr>
-							}
-							else
-							{
-								@foreach (var setting in view.Settings)
-								{
-									<tr>
-										<th scope="row">@setting.Name</th>
-										<td>@setting.Value</td>
-									</tr>
+							One table for the whole specification, with colspan heading rows rather
+							than a table per group: separate tables size their columns
+							independently, so the names and values stop lining up between them.
+						*@
+						<table class="detail-table editor-table">
+							<tbody>
+								@{
+									var group = string.Empty;
 								}
-							}
-
-							@foreach (var series in view.Series)
-							{
-								<tr class="section"><th colspan="2">Series: @series.Name</th></tr>
-								@foreach (var setting in series.Settings)
+								@foreach (var property in state.Editors)
 								{
-									<tr>
-										<th scope="row">@setting.Name</th>
-										<td>@setting.Value</td>
-									</tr>
-								}
-							}
-						</tbody>
-					</table>
-
-					@*
-					    The data keeps its own table: it has a column per series rather than a name and a
-					    value, so folding it into the one above would align nothing.
-					*@
-					<table class="detail-table data-table">
-						<tbody>
-							<tr class="section"><th colspan="@(view.Data.SeriesNames.Count + 1)">Data</th></tr>
-							<tr>
-								<th></th>
-								@foreach (var name in view.Data.SeriesNames)
-								{
-									<th scope="col">@name</th>
-								}
-							</tr>
-							@foreach (var row in view.Data.Rows)
-							{
-								<tr>
-									<th scope="row">@row.Category</th>
-									@foreach (var value in row.Values)
+									@if (property.Group != group)
 									{
-										<td>@value</td>
+										group = property.Group;
+										<tr class="section">
+											<th colspan="2">@GroupLabel(group)</th>
+										</tr>
+									}
+
+									<tr class="@(property.IsDefault ? "is-default" : null)">
+										<th scope="row">@property.Name</th>
+										<td>
+											@switch (property.Kind)
+											{
+												case EditorKind.Boolean:
+													<input type="checkbox"
+														   checked="@(SpecificationEditor.Read(state.Specification, property.Name) == "true")"
+														   @onchange="e => Set(state, property.Name, e.Value?.ToString()?.ToLowerInvariant())" />
+													break;
+
+												case EditorKind.Enumeration:
+													<select value="@SpecificationEditor.Read(state.Specification, property.Name)"
+															@onchange="e => Set(state, property.Name, e.Value?.ToString())">
+														@foreach (var option in property.Options)
+														{
+															<option value="@option">@(option.Length == 0 ? "(none)" : option)</option>
+														}
+													</select>
+													break;
+
+												case EditorKind.Number:
+													<input type="number" step="any"
+														   value="@SpecificationEditor.Read(state.Specification, property.Name)"
+														   @onchange="e => Set(state, property.Name, e.Value?.ToString())" />
+													break;
+
+												case EditorKind.ReadOnly:
+													<span class="read-only">@SpecificationEditor.Read(state.Specification, property.Name)</span>
+													break;
+
+												default:
+													<input type="text"
+														   value="@SpecificationEditor.Read(state.Specification, property.Name)"
+														   @onchange="e => Set(state, property.Name, e.Value?.ToString())" />
+													break;
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+
+						@*
+							The data keeps its own table: it has a column per series rather than a
+							name and a value, so folding it into the one above would align nothing.
+						*@
+						<table class="detail-table data-table">
+							<tbody>
+								<tr class="section">
+									<th colspan="@(state.Data.SeriesNames.Count + 1)">Data</th>
+								</tr>
+								<tr>
+									<th></th>
+									@foreach (var name in state.Data.SeriesNames)
+									{
+										<th scope="col">@name</th>
 									}
 								</tr>
-							}
-						</tbody>
-					</table>
-				</aside>
+								@foreach (var row in state.Data.Rows)
+								{
+									<tr>
+										<th scope="row">@row.Category</th>
+										@foreach (var value in row.Values)
+										{
+											<td>@value</td>
+										}
+									</tr>
+								}
+							</tbody>
+						</table>
+					</aside>
 				</div>
 			</section>
 		</PDTab>
@@ -136,44 +168,33 @@
 
 @code {
 	/// <summary>
-	/// Everything a tab needs, computed once for the sample it belongs to.
+	/// A sample's live state: the specification being edited, and the renders of it.
 	/// </summary>
 	/// <remarks>
-	/// The details are read before the SVGs are rendered, deliberately: rendering applies the
-	/// theme colours to the specification, and those would otherwise show up in the property
-	/// list as though the sample had asked for them.
+	/// The renders are held until something changes rather than recomputed on every re-render:
+	/// a single keystroke in one field would otherwise redraw every chart on the page.
 	/// </remarks>
-	private sealed record SampleView(
-		IReadOnlyList<SettingRow> Settings,
-		IReadOnlyList<SeriesRow> Series,
-		DataGrid Data,
-		string LightSvg,
-		string DarkSvg);
-
-	/// <summary>
-	/// The version of the library that rendered these charts, from Nerdbank.GitVersioning.
-	/// </summary>
-	/// <remarks>
-	/// Read from the rendering assembly rather than from this one: the useful question when
-	/// looking at a chart is which ChartMagic drew it, not which demo displayed it. The build
-	/// metadata after the plus sign is the commit, which is dropped - the version is there to
-	/// orient the reader, not to identify a build exactly.
-	/// </remarks>
-	private static string Version { get; } = ReadVersion();
-
-	private static string ReadVersion()
+	private sealed class SampleState
 	{
-		var informational = typeof(Chart).Assembly
-			.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-			?.InformationalVersion;
+		public required ChartSpecification Specification { get; set; }
 
-		if (informational is not { Length: > 0 })
+		public bool IsEdited { get; set; }
+
+		public string? Light { get; set; }
+
+		public string? Dark { get; set; }
+
+		public IReadOnlyList<PropertyEditor> Editors { get; set; } = [];
+
+		public DataGrid Data { get; set; } = new([], []);
+
+		public void Invalidate()
 		{
-			return string.Empty;
+			Light = null;
+			Dark = null;
+			Editors = SpecificationEditor.Describe(Specification);
+			Data = SampleDetails.Data(Specification);
 		}
-
-		var plus = informational.IndexOf('+', StringComparison.Ordinal);
-		return plus < 0 ? informational : informational[..plus];
 	}
 
 	private static readonly (string Value, string Label)[] Modes =
@@ -183,14 +204,21 @@
 		("dark", "Dark")
 	];
 
+	/// <summary>
+	/// The version of the library that rendered these charts, from Nerdbank.GitVersioning.
+	/// </summary>
+	/// <remarks>
+	/// Read from the rendering assembly rather than from this one: the useful question when
+	/// looking at a chart is which ChartMagic drew it. The build metadata after the plus sign is
+	/// dropped - the version is there to orient the reader, not to identify a build exactly.
+	/// </remarks>
+	private static string Version { get; } = ReadVersion();
+
 	private IReadOnlyList<ChartSample> _samples = [];
-	private readonly Dictionary<string, SampleView> _views = [];
+	private readonly Dictionary<string, SampleState> _state = [];
 	private string _mode = "auto";
 
-	protected override void OnInitialized()
-		// Held in a field: the gallery builds fresh specifications on every access, and the view
-		// cache is keyed against these instances.
-		=> _samples = SampleCharts.All;
+	protected override void OnInitialized() => _samples = SampleCharts.All;
 
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
@@ -199,8 +227,8 @@
 			return;
 		}
 
-		// The mode was already applied to the document by the boot script; this is only to show
-		// the right button as selected.
+		// The mode was already applied to the document by the boot script; this only lights the
+		// right button.
 		var stored = await JS.InvokeAsync<string>("chartMagicDemo.getTheme");
 		if (stored != _mode)
 		{
@@ -215,30 +243,75 @@
 		await JS.InvokeVoidAsync("chartMagicDemo.setTheme", mode);
 	}
 
-	/// <summary>
-	/// Builds a tab's content on first view and keeps it, so switching tabs does not re-render
-	/// every chart and re-reflect every specification.
-	/// </summary>
-	private SampleView View(ChartSample sample)
+	private SampleState StateFor(ChartSample sample)
 	{
-		if (_views.TryGetValue(sample.Title, out var existing))
+		if (_state.TryGetValue(sample.Title, out var existing))
 		{
 			return existing;
 		}
 
-		var settings = SampleDetails.ChartSettings(sample.Specification);
-		var series = SampleDetails.SeriesSettings(sample.Specification);
-		var data = SampleDetails.Data(sample.Specification);
+		var state = new SampleState { Specification = sample.Specification };
+		state.Invalidate();
+		_state[sample.Title] = state;
+		return state;
+	}
 
-		var view = new SampleView(
-			settings,
-			series,
-			data,
-			SampleCharts.ToSvg(sample.Specification, ChartTheme.Light),
-			SampleCharts.ToSvg(sample.Specification, ChartTheme.Dark));
+	private static string LightSvg(SampleState state)
+		=> state.Light ??= SampleCharts.ToSvg(state.Specification, ChartTheme.Light);
 
-		_views[sample.Title] = view;
-		return view;
+	private static string DarkSvg(SampleState state)
+		=> state.Dark ??= SampleCharts.ToSvg(state.Specification, ChartTheme.Dark);
+
+	/// <summary>
+	/// Applies an edit and redraws. A value that will not parse is ignored, because half-typed
+	/// input is normal when the chart is redrawing as you type.
+	/// </summary>
+	private static void Set(SampleState state, string name, string? value)
+	{
+		if (!SpecificationEditor.Write(state.Specification, name, value))
+		{
+			return;
+		}
+
+		state.IsEdited = true;
+		state.Invalidate();
+	}
+
+	/// <summary>
+	/// Puts a sample back to the specification it shipped with, by rebuilding it.
+	/// </summary>
+	private void Reset(string title)
+	{
+		var sample = SampleCharts.All.FirstOrDefault(s => s.Title == title);
+		if (sample is null)
+		{
+			return;
+		}
+
+		var state = new SampleState { Specification = sample.Specification };
+		state.Invalidate();
+		_state[title] = state;
+	}
+
+	/// <summary>
+	/// Group names are prefixed with a sort key so the groups appear in layout order rather than
+	/// alphabetically; the key is not shown.
+	/// </summary>
+	private static string GroupLabel(string group) => group.Length > 2 ? group[2..] : group;
+
+	private static string ReadVersion()
+	{
+		var informational = typeof(Chart).Assembly
+			.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+			?.InformationalVersion;
+
+		if (informational is not { Length: > 0 })
+		{
+			return string.Empty;
+		}
+
+		var plus = informational.IndexOf('+', StringComparison.Ordinal);
+		return plus < 0 ? informational : informational[..plus];
 	}
 
 	private static string BadgeClass(SampleStatus status) => status switch
