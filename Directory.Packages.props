@@ -22,6 +22,6 @@
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
-      <PackageVersion Include="PanoramicData.Blazor" Version="10.0.192" />
+      <PackageVersion Include="PanoramicData.Blazor" Version="10.0.194" />
 </ItemGroup>
 </Project>
