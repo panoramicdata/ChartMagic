@@ -34,7 +34,17 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			chart,
 			chartBackgroundAreaNode);
 
-		var writer = new XmlTextWriter(stream, Encoding.Unicode)
+		// Issue #27: UTF-8, not UTF-16.
+		//
+		// Encoding.Unicode is UTF-16 LE. A UTF-16 SVG is valid and renders fine in a browser,
+		// but Chart.SaveImage produces raster output by rendering to SVG and reloading it
+		// through SKSvg, and that parse silently yields an empty picture for UTF-16 input. The
+		// result was a valid PNG or JPEG containing no chart content at all - the background
+		// fill and nothing else - while the SVG of the same chart was complete.
+		//
+		// UTF-8 is also what consumers expect of an .svg file; reading one with a UTF-8 reader
+		// previously failed on the first byte.
+		var writer = new XmlTextWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
 		{
 			Formatting = Formatting.Indented
 		};
@@ -50,7 +60,9 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		out XmlElement innerPlotNode,
 		out AxisHandlerResult axisHandlerResult)
 	{
-		var xmlDeclaration = _xmlDocument.CreateXmlDeclaration("1.0", "UTF-16", "yes");
+		// Issue #27: must match the encoding the writer actually uses, or the declaration
+		// contradicts the bytes and parsing fails outright.
+		var xmlDeclaration = _xmlDocument.CreateXmlDeclaration("1.0", "UTF-8", "yes");
 		var root = _xmlDocument.DocumentElement;
 		_xmlDocument.InsertBefore(xmlDeclaration, root);
 
@@ -60,6 +72,21 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		_xmlDocument.AppendChild(svg);
 		svg.SetAttribute("width", widthPixels.ToString(CultureInfo.InvariantCulture));
 		svg.SetAttribute("height", heightPixels.ToString(CultureInfo.InvariantCulture));
+
+		// Issue #27: a viewBox is required, not optional.
+		//
+		// Chart.SaveImage produces raster output by rendering to SVG and reloading it through
+		// SKSvg, then drawing the resulting picture scaled to the requested pixel size. With
+		// width and height but no viewBox there is no user coordinate system to scale from, so
+		// the picture bounds fall back to the content bounds and the scale-to-fit blows the
+		// drawing up. The visible result was a raster image consisting of one enormously
+		// magnified element - a background rectangle - with everything else pushed off canvas.
+		//
+		// Browsers tolerate the omission because they treat width and height as the viewport,
+		// which is why the SVG output looked correct while the PNG did not.
+		svg.SetAttribute(
+			"viewBox",
+			FormattableString.Invariant($"0 0 {widthPixels} {heightPixels}"));
 
 		// Always define a defs node
 		defs = _xmlDocument.CreateElement(string.Empty, "defs", string.Empty);
