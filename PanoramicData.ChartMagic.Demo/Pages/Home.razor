@@ -1,3 +1,5 @@
+@using System.Reflection
+@using PanoramicData.ChartMagic.Models
 @page "/"
 @inject IJSRuntime JS
 
@@ -5,7 +7,7 @@
 
 <header class="page-header">
 	<div>
-		<h1>ChartMagic</h1>
+		<h1>ChartMagic <span class="version">@Version</span></h1>
 		<p class="lead">
 			Charts rendered in your browser by <code>PanoramicData.ChartMagic</code>, running under
 			WebAssembly. Every chart is generated from a <code>ChartSpecification</code> and
@@ -145,6 +147,32 @@
 		DataGrid Data,
 		string LightSvg,
 		string DarkSvg);
+
+	/// <summary>
+	/// The version of the library that rendered these charts, from Nerdbank.GitVersioning.
+	/// </summary>
+	/// <remarks>
+	/// Read from the rendering assembly rather than from this one: the useful question when
+	/// looking at a chart is which ChartMagic drew it, not which demo displayed it. The build
+	/// metadata after the plus sign is the commit, which is dropped - the version is there to
+	/// orient the reader, not to identify a build exactly.
+	/// </remarks>
+	private static string Version { get; } = ReadVersion();
+
+	private static string ReadVersion()
+	{
+		var informational = typeof(Chart).Assembly
+			.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+			?.InformationalVersion;
+
+		if (informational is not { Length: > 0 })
+		{
+			return string.Empty;
+		}
+
+		var plus = informational.IndexOf('+', StringComparison.Ordinal);
+		return plus < 0 ? informational : informational[..plus];
+	}
 
 	private static readonly (string Value, string Label)[] Modes =
 	[
