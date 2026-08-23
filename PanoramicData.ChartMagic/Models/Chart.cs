@@ -56,7 +56,17 @@ public class Chart : RootChartElement
 			throw new InvalidOperationException("SVG picture is null.");
 		}
 
-		skSvg.Picture.Draw(SKColors.Transparent, width, height, canvas);
+		// Issue #27: draw the picture directly rather than through the scaling overload.
+		//
+		// The previous call passed the requested pixel width and height into an overload whose
+		// corresponding parameters are scale factors, so the picture was magnified by a factor
+		// of the canvas size. One element - whichever background rectangle sat at the origin -
+		// was blown up to fill the frame and everything else was pushed off canvas, which is
+		// why raster output was a single flat colour while the SVG was correct.
+		//
+		// The SVG now carries a viewBox matching the requested size, so the picture is already
+		// in the right coordinate space and needs no scaling here.
+		canvas.DrawPicture(skSvg.Picture);
 
 		using var image = surface.Snapshot();
 
