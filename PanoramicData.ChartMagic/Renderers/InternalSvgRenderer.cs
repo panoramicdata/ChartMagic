@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 
 namespace PanoramicData.ChartMagic.Renderers;
 
@@ -118,11 +118,11 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		svg.AppendChild(chartBackgroundAreaNode);
 
 		// ChartArea background
-		chartAreaNode = GetGroup(chart.ChartArea, "chartArea");
+		chartAreaNode = GetGroup(chart.ChartArea, "chartArea", chart.ChartBackgroundArea);
 		chartBackgroundAreaNode.AppendChild(chartAreaNode);
 
 		// Inner Plot background
-		innerPlotNode = GetGroup(chart.ChartArea.InnerPlot, "innerPlot");
+		innerPlotNode = GetGroup(chart.ChartArea.InnerPlot, "innerPlot", chart.ChartArea);
 		chartAreaNode.AppendChild(innerPlotNode);
 
 		axisHandlerResult = new AxisHandler(chart).Process();
@@ -257,7 +257,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		}
 
 		var legend = chart.Legends[0];
-		var legendXmlElement = GetGroup(legend, "legend");
+		var legendXmlElement = GetGroup(legend, "legend", chart.ChartBackgroundArea);
 		chartBackgroundAreaNode.AppendChild(legendXmlElement);
 
 		var legendWidth = widthPixels * legend.GetCanvasWidthPercent() / 100;
@@ -420,7 +420,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	{
 		// X Axis
 		var xAxis = chart.ChartArea.XAxis;
-		var xAxisNode = GetGroup(xAxis, "xAxis");
+		var xAxisNode = GetGroup(xAxis, "xAxis", chart.ChartArea);
 		chartAreaNode.AppendChild(xAxisNode);
 		if (xAxis.IsEnabled && xAxis.LabelsEnabled)
 		{
@@ -429,7 +429,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 		// Y Axis
 		var yAxis = chart.ChartArea.YAxis;
-		var yAxisNode = GetGroup(yAxis, "yAxis");
+		var yAxisNode = GetGroup(yAxis, "yAxis", chart.ChartArea);
 		chartAreaNode.AppendChild(yAxisNode);
 		if (yAxis.IsEnabled && yAxis.LabelsEnabled)
 		{
@@ -1158,7 +1158,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		}
 
 		var legend = chart.Legends[0];
-		var legendXmlElement = GetGroup(legend, "legend");
+		var legendXmlElement = GetGroup(legend, "legend", chart.ChartBackgroundArea);
 		chartBackgroundAreaNode.AppendChild(legendXmlElement);
 
 		var legendHeight = heightPixels * legend.GetCanvasHeightPercent() / 100;
@@ -1402,12 +1402,39 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		return Polygon(vertices);
 	}
 
-	private XmlElement GetGroup(ChartNamedElement element, string id)
+	/// <summary>
+	/// A positioned group for an element, translated into place.
+	/// </summary>
+	/// <param name="element">The element the group represents.</param>
+	/// <param name="id">The group id.</param>
+	/// <param name="within">
+	/// The group this one is nested inside, when it is nested inside a positioned one.
+	/// </param>
+	/// <remarks>
+	/// Nesting matters because SVG transforms compound: a group inside a translated group is
+	/// already moved by its parent, so translating it by its absolute position moves it twice.
+	/// That went unnoticed because every parent sat at the origin in the common case - a chart
+	/// area at 0,0 translates to "0,0", which is skipped entirely. Put the legend on the left,
+	/// so the chart area starts 20% in, and the plot and its axes were displaced by a further
+	/// 20% of the width: the last category fell off the canvas.
+	/// </remarks>
+	private XmlElement GetGroup(ChartNamedElement element, string id, ChartElement? within = null)
 	{
 		var groupNode = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
 		groupNode.SetAttribute("id", id);
-		var inverseYPositionPercent = element.GetCanvasYLocationPercent() + element.GetCanvasHeightPercent();
-		var translation = $"{widthPixels * element.GetCanvasXLocationPercent() / 100},{heightPixels * (100 - (inverseYPositionPercent)) / 100}";
+
+		// Y is measured from the bottom here and from the top in SVG, so a position becomes a
+		// distance from the top of the element above it.
+		var topPercent = 100 - (element.GetCanvasYLocationPercent() + element.GetCanvasHeightPercent());
+		var leftPercent = element.GetCanvasXLocationPercent();
+
+		if (within is not null)
+		{
+			leftPercent -= within.GetCanvasXLocationPercent();
+			topPercent -= 100 - (within.GetCanvasYLocationPercent() + within.GetCanvasHeightPercent());
+		}
+
+		var translation = $"{widthPixels * leftPercent / 100},{heightPixels * topPercent / 100}";
 		if (translation != "0,0")
 		{
 			groupNode.SetAttribute("transform", $"translate({translation})");
