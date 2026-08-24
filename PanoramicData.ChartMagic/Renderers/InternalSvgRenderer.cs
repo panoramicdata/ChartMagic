@@ -844,9 +844,9 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			}
 			var stackDictionary = series.ChartType switch
 			{
-				SeriesChartType.StackedColumn => stackedColumnDictionary,
-				SeriesChartType.StackedBar => stackedColumnDictionary,
-				SeriesChartType.StackedArea => stackedAreaDictionary,
+				SeriesChartType.StackedColumn or SeriesChartType.StackedColumn100 => stackedColumnDictionary,
+				SeriesChartType.StackedBar or SeriesChartType.StackedBar100 => stackedColumnDictionary,
+				SeriesChartType.StackedArea or SeriesChartType.StackedArea100 => stackedAreaDictionary,
 				_ => null
 			};
 
@@ -864,7 +864,11 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			var pathNode = _xmlDocument.CreateElement(string.Empty, "path", string.Empty);
 			var areaNode = _xmlDocument.CreateElement(string.Empty, "path", string.Empty);
 			var pathStringBuilder = new StringBuilder();
-			var areaStringBuilder = new StringBuilder($"M0 {innerPlotHeight}");
+			// The outline only. Where the fill starts and finishes is decided once the first and last
+			// points are known, because it belongs under them and not at the edges of the plot.
+			var areaStringBuilder = new StringBuilder();
+			double? firstXPosition = null;
+			var lastXPosition = 0d;
 			var returnPathPoints = new List<Tuple<double, double>>();
 			var isFirstPoint = true;
 			var markerNodes = new List<XmlElement>();
@@ -877,7 +881,12 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 				var previousYValue = stackDictionary is not null ? stackDictionary.TryGetValue(xValueString, out var stackedColumnValue) ? (double?)stackedColumnValue : null : null;
 				if (stackDictionary is not null && yPointValue is not null)
 				{
-					yValue = (double)(yPointValue! + (previousYValue ?? 0));
+					// As above: a share of the category rather than the value itself.
+					var contribution = geometry.IsPercentStackedPlot
+						? geometry.ToPercentOfCategory(chartPoint.XValue, yPointValue.Value)
+						: yPointValue.Value;
+
+					yValue = contribution + (previousYValue ?? 0);
 					stackDictionary[xValueString] = yValue;
 				}
 				else
@@ -897,6 +906,8 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 				// Letter - always M to start, afterwards L unless the previous value is null
 				pathStringBuilder.Append($"{(isFirstPoint ? "M" : " L")}{xPosition} {yPosition}");
 				areaStringBuilder.Append($" L{xPosition} {yPosition}");
+				firstXPosition ??= xPosition;
+				lastXPosition = xPosition;
 				isFirstPoint = false;
 
 				// Add marker if appropriate
@@ -914,19 +925,28 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			{
 				case SeriesChartType.Area:
 				case SeriesChartType.StackedArea:
+				case SeriesChartType.StackedArea100:
+					// The fill hangs below the line it follows, from the first point to the last. It used to
+					// start at the bottom-left corner of the plot and finish at the bottom-right, which drew
+					// a diagonal ramp up to the first point and another down from the last - inventing data
+					// on either side of the series. With a whole category interval of padding at each end of
+					// the axis, those ramps were a sixth of the chart wide.
+					//
+					// And it hangs to the zero line, not to the floor of the plot, so a series with negative
+					// values fills downwards from zero rather than upwards from the bottom.
+					var baseline = geometry.ValueAxisOrigin;
+
 					if (returnPathPoints.Count == 0)
 					{
-						returnPathPoints.Add(
-							new(
-								innerPlotWidth,
-								innerPlotHeight
-							)
-						);
+						returnPathPoints.Add(new(lastXPosition, baseline));
 					}
 
-					areaStringBuilder.Append(string.Join("", returnPathPoints.AsEnumerable().Reverse().Select(p => $"L{p.Item1} {p.Item2}")));
-					areaStringBuilder.Append('Z');
-					areaNode.SetAttribute("d", areaStringBuilder.ToString());
+					var areaPath = new StringBuilder(
+						FormattableString.Invariant($"M{firstXPosition ?? 0} {baseline}"));
+					areaPath.Append(areaStringBuilder);
+					areaPath.Append(string.Join("", returnPathPoints.AsEnumerable().Reverse().Select(p => $"L{p.Item1} {p.Item2}")));
+					areaPath.Append('Z');
+					areaNode.SetAttribute("d", areaPath.ToString());
 					areaNode.SetStyle(series, applyStroke: false);
 					seriesNode.AppendChild(areaNode);
 
@@ -950,6 +970,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 					break;
 				case SeriesChartType.StackedArea:
+				case SeriesChartType.StackedArea100:
 					pathNode.SetAttribute("d", pathStringBuilder.ToString());
 					pathNode.SetStyle(series, applyFill: false);
 					stackLines.AppendChild(pathNode);
@@ -1008,7 +1029,13 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			if (stackDictionary is not null)
 			{
 				var previousTotal = stackDictionary.TryGetValue(key, out var runningTotal) ? runningTotal : 0;
-				var newTotal = previousTotal + chartPoint.YValue.Value;
+
+				// A hundred per cent stacked series contributes its share of the category, not its value.
+				var contribution = geometry.IsPercentStackedPlot
+					? geometry.ToPercentOfCategory(chartPoint.XValue, chartPoint.YValue.Value)
+					: chartPoint.YValue.Value;
+
+				var newTotal = previousTotal + contribution;
 				stackDictionary[key] = newTotal;
 				from = geometry.ValueToPixels(previousTotal);
 				to = geometry.ValueToPixels(newTotal);

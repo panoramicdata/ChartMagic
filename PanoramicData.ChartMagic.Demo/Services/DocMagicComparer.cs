@@ -71,10 +71,26 @@ public sealed class DocMagicComparer(HttpClient httpClient)
 
 			if (!response.IsSuccessStatusCode)
 			{
-				var detail = await response.Content.ReadAsStringAsync(cancellationToken);
+				var status = (int)response.StatusCode;
+				var detail = Shorten(await response.Content.ReadAsStringAsync(cancellationToken));
+
+				// Which side is at fault decides what the reader should do about it, so say so. A
+				// rejected request usually means the specification asks for something the endpoint will
+				// not accept, and editing it again is the fix; a server error is not the reader's to fix.
+				var summary = status switch
+				{
+					400 => "The server rejected the specification",
+					401 or 403 => "The server rejected the API key",
+					404 => "No chart endpoint there - is this a Windows DocMagic?",
+					>= 500 => "The server failed to render it",
+					_ => "The server did not render it"
+				};
+
 				return new ComparisonResult(
 					null,
-					$"{(int)response.StatusCode} {response.ReasonPhrase}: {Shorten(detail)}");
+					detail.Length > 0
+						? $"{summary} ({status}): {detail}"
+						: $"{summary} ({status})");
 			}
 
 			var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);

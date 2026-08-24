@@ -69,7 +69,7 @@
 	</div>
 }
 
-<PDTabSet CssClass="samples" TabMinWidth="auto" TabMaxWidth="none">
+<PDTabSet CssClass="samples" TabMinWidth="auto" TabMaxWidth="none" OnTabSelected="OnTabSelectedAsync">
 	@foreach (var sample in _samples)
 	{
 		<PDTab Title="@sample.Title">
@@ -80,7 +80,7 @@
 				<h2>
 					@sample.Title
 					<span class="badge @BadgeClass(sample.Status)">@BadgeText(sample.Status)</span>
-					<button type="button" class="reset-button" @onclick="() => Reset(sample.Title)">Reset</button>
+					<button type="button" class="reset-button" @onclick="() => ResetAsync(sample.Title)">Reset</button>
 					@if (state.IsEdited)
 					{
 						<span class="edited">edited</span>
@@ -101,30 +101,37 @@
 								Directly underneath rather than side by side: both renders are the same size, and a
 								difference of a few pixels is far easier to see when one is above the other.
 							*@
+							var comparison = ComparisonFor(sample.Title);
 							<div class="comparison">
 								<div class="comparison-heading">
 									<span>DocMagic</span>
-									<button type="button" class="reset-button"
-										disabled="@_pending.Contains(sample.Title)"
-										@onclick="() => CompareAsync(sample.Title)">
-										@(_pending.Contains(sample.Title) ? "Rendering..." : "Render")
-									</button>
+									@if (comparison.IsRendering)
+									{
+										<span class="comparison-note">rendering...</span>
+									}
+									else if (comparison.Result?.Error is { Length: > 0 })
+									{
+										@* The only button here, and only when there is a reason for one. *@
+										<button type="button" class="reset-button" @onclick="() => RetryComparisonAsync(sample.Title)">
+											Retry
+										</button>
+									}
 								</div>
 
-								@if (_rendered.TryGetValue(sample.Title, out var comparison))
+								@if (comparison.Result is { } result)
 								{
-									@if (comparison.HasImage)
+									@if (result.HasImage)
 									{
-										<img class="comparison-image" src="@comparison.ImageDataUri" alt="Rendered by DocMagic" />
+										<img class="comparison-image" src="@result.ImageDataUri" alt="Rendered by DocMagic" />
 									}
 									else
 									{
-										<p class="comparison-error">@comparison.Error</p>
+										<p class="comparison-error">@result.Error</p>
 									}
 								}
-								else
+								else if (!comparison.IsRendering)
 								{
-									<p class="notes">Not rendered yet.</p>
+									<p class="notes">Waiting for the first render.</p>
 								}
 							</div>
 						}
@@ -160,12 +167,12 @@
 												case EditorKind.Boolean:
 													<input type="checkbox"
 														   checked="@(SpecificationEditor.Read(state.Specification, property.Name) == "true")"
-														   @onchange="e => Set(state, property.Name, e.Value?.ToString()?.ToLowerInvariant())" />
+														   @onchange="e => SetAsync(sample.Title, state, property.Name, e.Value?.ToString()?.ToLowerInvariant())" />
 													break;
 
 												case EditorKind.Enumeration:
 													<select value="@SpecificationEditor.Read(state.Specification, property.Name)"
-															@onchange="e => Set(state, property.Name, e.Value?.ToString())">
+															@onchange="e => SetAsync(sample.Title, state, property.Name, e.Value?.ToString())">
 														@foreach (var option in property.Options)
 														{
 															<option value="@option">@(option.Length == 0 ? "(none)" : option)</option>
@@ -176,13 +183,13 @@
 												case EditorKind.Number:
 													<input type="number" step="any"
 														   value="@SpecificationEditor.Read(state.Specification, property.Name)"
-														   @onchange="e => Set(state, property.Name, e.Value?.ToString())" />
+														   @onchange="e => SetAsync(sample.Title, state, property.Name, e.Value?.ToString())" />
 													break;
 
 												case EditorKind.Colour:
 													@* PDColorPicker carries an alpha slider and allows transparency by default. *@
 													<PDColorPicker Value="@SpecificationEditor.Read(state.Specification, property.Name)"
-														ValueChanged="colour => Set(state, property.Name, colour)" />
+														ValueChanged="colour => SetAsync(sample.Title, state, property.Name, colour)" />
 													break;
 
 												case EditorKind.ReadOnly:
@@ -192,7 +199,7 @@
 												default:
 													<input type="text"
 														   value="@SpecificationEditor.Read(state.Specification, property.Name)"
-														   @onchange="e => Set(state, property.Name, e.Value?.ToString())" />
+														   @onchange="e => SetAsync(sample.Title, state, property.Name, e.Value?.ToString())" />
 													break;
 											}
 
@@ -206,7 +213,7 @@
 													disabled="@property.IsDefault"
 													title="@(property.IsDefault ? $"{property.Name} is already at its default" : $"Reset {property.Name} to its default")"
 													aria-label="Reset @property.Name to its default"
-													@onclick="() => ResetProperty(state, property.Name)">&#8634;</button>
+													@onclick="() => ResetPropertyAsync(sample.Title, state, property.Name)">&#8634;</button>
 											}
 											</div>
 										</td>
@@ -305,8 +312,41 @@
 	// The optional comparison against a DocMagic server. Off unless the demo is running locally
 	// and has been told where to find one.
 	private ComparisonConfiguration _comparison = new(null, null, false);
-	private readonly Dictionary<string, ComparisonResult> _rendered = [];
-	private readonly HashSet<string> _pending = [];
+	/// <summary>
+	/// What the DocMagic comparison currently shows for one sample, and what it is doing.
+	/// </summary>
+	private sealed class ComparisonState
+	{
+		/// <summary>The last result, or null before the first one.</summary>
+		public ComparisonResult? Result { get; set; }
+
+		/// <summary>Whether a render is in flight or waiting out the settling delay.</summary>
+		public bool IsRendering { get; set; }
+
+		/// <summary>
+		/// The request that produced <see cref="Result"/>, so an unchanged specification is not
+		/// sent again - reselecting a tab should cost nothing.
+		/// </summary>
+		public string? RenderedBody { get; set; }
+
+		/// <summary>
+		/// Bumped by every change. A render that finds the token has moved on has been
+		/// superseded, and neither draws nor reports - which is what stops a burst of keystrokes
+		/// producing a burst of requests, and stops results arriving out of order.
+		/// </summary>
+		public int Token { get; set; }
+	}
+
+	private readonly Dictionary<string, ComparisonState> _comparisons = [];
+
+	/// <summary>
+	/// How long to wait for editing to stop before rendering.
+	/// </summary>
+	/// <remarks>
+	/// Every keystroke in a text field is a change, and every change would otherwise be a render
+	/// on a remote server. Long enough not to fire mid-word, short enough not to feel deferred.
+	/// </remarks>
+	private static readonly TimeSpan ComparisonSettleDelay = TimeSpan.FromMilliseconds(500);
 
 	protected override void OnInitialized() => _samples = SampleCharts.All;
 
@@ -329,6 +369,13 @@
 		// at all unless this is a local host.
 		_comparison = await Settings.LoadAsync();
 		StateHasChanged();
+
+		// The first tab is already showing, and no tab-selected event will fire for it, so it
+		// would otherwise sit unrendered until the reader touched something.
+		if (_comparison.IsConfigured && _samples.Count > 0)
+		{
+			await ScheduleComparisonAsync(_samples[0].Title);
+		}
 	}
 
 	private async Task SetModeAsync(string mode)
@@ -338,43 +385,118 @@
 	}
 
 	/// <summary>
-	/// Renders one sample on the configured DocMagic server and keeps the result.
+	/// The comparison state for a sample, created on first use.
+	/// </summary>
+	private ComparisonState ComparisonFor(string title)
+	{
+		if (!_comparisons.TryGetValue(title, out var state))
+		{
+			state = new ComparisonState();
+			_comparisons[title] = state;
+		}
+
+		return state;
+	}
+
+	/// <summary>
+	/// Renders a sample on the DocMagic server once editing has settled.
 	/// </summary>
 	/// <remarks>
-	/// Per sample and on demand rather than for every tab at once: the corpus is thirty-odd
-	/// samples and each one is a render on a remote server.
+	/// Started by anything that changes what is on screen: an edit, a reset, or selecting a tab.
+	/// Nothing has to be clicked.
+	///
+	/// Two things keep that from being expensive. Only the selected tab exists in the document at
+	/// all, so a page of thirty-odd samples is never thirty-odd renders; and a token bumped by each
+	/// change means a burst of keystrokes results in one render, of the state the typing ended in.
 	/// </remarks>
-	private async Task CompareAsync(string title)
+	private async Task ScheduleComparisonAsync(string title, bool force = false)
 	{
-		if (!_comparison.IsConfigured || !_pending.Add(title))
+		if (!_comparison.IsConfigured)
 		{
 			return;
 		}
 
+		var state = ComparisonFor(title);
+		var token = ++state.Token;
+		state.IsRendering = true;
+
+		await Task.Delay(ComparisonSettleDelay);
+
+		// Superseded while waiting: the later change owns the render.
+		if (token != state.Token)
+		{
+			return;
+		}
+
+		string body;
 		try
 		{
-			var apiKey = await Settings.ReadApiKeyAsync();
-			if (apiKey is not { Length: > 0 })
-			{
-				_rendered[title] = new ComparisonResult(null, "No API key stored.");
-				return;
-			}
+			body = DocMagicRequest.Build(_state[title].Specification, SampleCharts.WidthPixels, SampleCharts.HeightPixels);
+		}
+		catch (NotSupportedException ex)
+		{
+			// Something in the specification has no counterpart on the endpoint. Reported rather
+			// than approximated, because a chart drawn from a substituted value would look like a
+			// rendering difference.
+			Finish(state, new ComparisonResult(null, ex.Message), renderedBody: null);
+			return;
+		}
 
-			var state = _state[title];
-			_rendered[title] = await Comparer.RenderAsync(
+		// An unchanged specification needs no round trip, which is what makes reselecting a tab
+		// free.
+		if (!force && body == state.RenderedBody && state.Result is not null)
+		{
+			state.IsRendering = false;
+			StateHasChanged();
+			return;
+		}
+
+		var apiKey = await Settings.ReadApiKeyAsync();
+		if (apiKey is not { Length: > 0 })
+		{
+			Finish(state, new ComparisonResult(null, "No API key stored."), renderedBody: null);
+		}
+		else
+		{
+			var result = await Comparer.RenderAsync(
 				_comparison,
 				apiKey,
-				state.Specification,
+				_state[title].Specification,
 				SampleCharts.WidthPixels,
 				SampleCharts.HeightPixels,
 				CancellationToken.None);
-		}
-		finally
-		{
-			_pending.Remove(title);
+
+			if (token != state.Token)
+			{
+				// Changed again while this was in flight. Dropping it stops a slow render painting
+				// over a newer one.
+				return;
+			}
+
+			// A failed render does not count as rendered, so the next change tries again rather
+			// than deciding nothing has changed.
+			Finish(state, result, result.HasImage ? body : null);
 		}
 	}
 
+	private void Finish(ComparisonState state, ComparisonResult result, string? renderedBody)
+	{
+		state.Result = result;
+		state.RenderedBody = renderedBody;
+		state.IsRendering = false;
+		StateHasChanged();
+	}
+
+	/// <summary>
+	/// Renders the newly selected sample, if it is not already showing the current one.
+	/// </summary>
+	private Task OnTabSelectedAsync(PDTab tab)
+		=> tab.Title is { Length: > 0 } title ? ScheduleComparisonAsync(title) : Task.CompletedTask;
+
+	/// <summary>
+	/// Renders again after a failure, which is the one case worth a button.
+	/// </summary>
+	private Task RetryComparisonAsync(string title) => ScheduleComparisonAsync(title, force: true);
 	/// <summary>
 	/// Forgets the stored server and key, so a key need not outlive the session.
 	/// </summary>
@@ -382,8 +504,9 @@
 	{
 		await Settings.ForgetAsync();
 		_comparison = await Settings.ReadAsync();
-		_rendered.Clear();
+		_comparisons.Clear();
 	}
+
 	private SampleState StateFor(ChartSample sample)
 	{
 		if (_state.TryGetValue(sample.Title, out var existing))
@@ -407,7 +530,7 @@
 	/// Applies an edit and redraws. A value that will not parse is ignored, because half-typed
 	/// input is normal when the chart is redrawing as you type.
 	/// </summary>
-	private static void Set(SampleState state, string name, string? value)
+	private async Task SetAsync(string title, SampleState state, string name, string? value)
 	{
 		if (!SpecificationEditor.Write(state.Specification, name, value))
 		{
@@ -416,23 +539,26 @@
 
 		state.IsEdited = true;
 		state.Invalidate();
+
+		await ScheduleComparisonAsync(title);
 	}
 
 	/// <summary>
 	/// Puts one property back to its default, leaving the rest of the sample alone.
 	/// </summary>
-	private static void ResetProperty(SampleState state, string name)
+	private async Task ResetPropertyAsync(string title, SampleState state, string name)
 	{
 		if (SpecificationEditor.ResetToDefault(state.Specification, name))
 		{
 			state.Invalidate();
+			await ScheduleComparisonAsync(title);
 		}
 	}
 
 	/// <summary>
 	/// Puts a sample back to the specification it shipped with, by rebuilding it.
 	/// </summary>
-	private void Reset(string title)
+	private async Task ResetAsync(string title)
 	{
 		var sample = SampleCharts.All.FirstOrDefault(s => s.Title == title);
 		if (sample is null)
@@ -443,6 +569,8 @@
 		var state = new SampleState { Specification = sample.Specification };
 		state.Invalidate();
 		_state[title] = state;
+
+		await ScheduleComparisonAsync(title);
 	}
 
 	/// <summary>

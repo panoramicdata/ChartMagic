@@ -323,10 +323,9 @@ public static class SampleCharts
 
 		new(
 			"100% stacked column",
-			"Deliberately still blank. Rendering these needs the value axis rescaled to 0-100 "
-			+ "per category, which is not wired up, and a chart showing plausible but wrong "
-			+ "proportions would be worse than one showing nothing. Issue #33.",
-			SampleStatus.NotImplemented,
+			"Each category scaled to fill the plot, so the segments read as shares rather than "
+			+ "amounts. The value axis is a fixed nought to a hundred whatever the totals are.",
+			SampleStatus.Working,
 			WithAxes(BuildMultiSeries(SeriesChartType.StackedColumn100), "Day", "Percent")),
 
 		new(

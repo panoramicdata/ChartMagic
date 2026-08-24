@@ -18,6 +18,7 @@ internal sealed class PlotGeometry
 	private readonly double _yLogStart;
 	private readonly double _yLogRange;
 	private readonly List<double> _categories = [];
+	private readonly Dictionary<double, double> _categoryTotals = [];
 	private readonly Dictionary<double, string> _categoryLabels = [];
 
 	internal PlotGeometry(Chart chart, AxisHandlerResult axisHandlerResult, double width, double height)
@@ -82,7 +83,30 @@ internal sealed class PlotGeometry
 		// This applies to every chart type, not only columns. The line case looked close on a
 		// pixel count purely because a thin line covers few pixels: its axis ran 11.5 to 30.75
 		// against DocMagic 0 to 35, which is not close at all.
-		if (!YIsLogarithmic)
+		// A hundred per cent stacked chart plots shares of a category, not amounts, so the totals
+		// are needed before anything can be positioned and the axis is a fixed nought to a
+		// hundred rather than something derived from the data.
+		IsPercentStackedPlot = chart.Series.Any(series => IsPercentStacked(series.ChartType));
+		if (IsPercentStackedPlot)
+		{
+			foreach (var point in chart.Series
+				.Where(series => IsPercentStacked(series.ChartType))
+				.SelectMany(series => series.Points))
+			{
+				// Absolute values, so that a negative share still contributes its size to the total
+				// rather than cancelling a positive one and sending the percentages past a hundred.
+				_categoryTotals[point.XValue] =
+					_categoryTotals.GetValueOrDefault(point.XValue) + Math.Abs(point.YValue ?? 0);
+			}
+		}
+
+		if (IsPercentStackedPlot)
+		{
+			ValueAxisInterval = 20;
+			_yDisplayStart = chart.ChartArea.YAxis.Min ?? 0;
+			_yDisplayRange = (chart.ChartArea.YAxis.Max ?? 100) - _yDisplayStart;
+		}
+		else if (!YIsLogarithmic)
 		{
 			var dataMinimum = axisHandlerResult.MinY ?? 0;
 			var dataMaximum = axisHandlerResult.MaxY ?? 0;
@@ -161,6 +185,24 @@ internal sealed class PlotGeometry
 	internal IReadOnlyList<double> Categories => _categories;
 
 	/// <summary>
+	/// Whether the plot shows shares of each category rather than amounts.
+	/// </summary>
+	internal bool IsPercentStackedPlot { get; private set; }
+
+	/// <summary>
+	/// A value as its percentage of the total for its category.
+	/// </summary>
+	/// <remarks>
+	/// Returns nought for a category that sums to nothing, rather than dividing by it: an empty
+	/// category has no shares to show, and a chart of infinities would be worse than a gap.
+	/// </remarks>
+	internal double ToPercentOfCategory(double xValue, double value)
+	{
+		var total = _categoryTotals.GetValueOrDefault(xValue);
+		return total == 0 ? 0 : value / total * 100;
+	}
+
+	/// <summary>
 	/// The number of intervals the category axis is divided into: one more than there are
 	/// categories.
 	/// </summary>
@@ -190,23 +232,38 @@ internal sealed class PlotGeometry
 	internal static bool IsBanded(SeriesChartType chartType) => chartType
 		is SeriesChartType.Column
 		or SeriesChartType.StackedColumn
+		or SeriesChartType.StackedColumn100
 		or SeriesChartType.Bar
-		or SeriesChartType.StackedBar;
+		or SeriesChartType.StackedBar
+		or SeriesChartType.StackedBar100;
 
 	/// <summary>
 	/// Whether this chart type stacks onto the running total for its category.
 	/// </summary>
 	internal static bool IsStacked(SeriesChartType chartType) => chartType
 		is SeriesChartType.StackedColumn
+		or SeriesChartType.StackedColumn100
 		or SeriesChartType.StackedBar
-		or SeriesChartType.StackedArea;
+		or SeriesChartType.StackedBar100
+		or SeriesChartType.StackedArea
+		or SeriesChartType.StackedArea100;
+
+	/// <summary>
+	/// Whether this chart type stacks to a full hundred per cent, so the values are shares of
+	/// their category rather than amounts.
+	/// </summary>
+	internal static bool IsPercentStacked(SeriesChartType chartType) => chartType
+		is SeriesChartType.StackedColumn100
+		or SeriesChartType.StackedBar100
+		or SeriesChartType.StackedArea100;
 
 	/// <summary>
 	/// Whether this chart type runs along the Y axis rather than the X axis.
 	/// </summary>
 	internal static bool IsHorizontal(SeriesChartType chartType) => chartType
 		is SeriesChartType.Bar
-		or SeriesChartType.StackedBar;
+		or SeriesChartType.StackedBar
+		or SeriesChartType.StackedBar100;
 
 	/// <summary>
 	/// The extent of one category band along the category axis - horizontal for columns,
