@@ -34,5 +34,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PanoramicData.ChartMagic\PanoramicData.ChartMagic.csproj" />
+    <!--
+      The demo holds the projection from a specification into the DocMagic chart request. It is a
+      comparison tool rather than shipped code, but it is worth testing: it decides what the two
+      renderers are asked to draw, and a mistake in it reads as a rendering difference.
+    -->
+    <ProjectReference Include="..\PanoramicData.ChartMagic.Demo\PanoramicData.ChartMagic.Demo.csproj" />
   </ItemGroup>
 </Project>

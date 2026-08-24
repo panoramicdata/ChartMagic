@@ -2,6 +2,9 @@
 @using System.Reflection
 @using PanoramicData.ChartMagic.Models
 @inject IJSRuntime JS
+@inject PanoramicData.ChartMagic.Demo.Services.ComparisonSettings Settings
+@inject PanoramicData.ChartMagic.Demo.Services.DocMagicComparer Comparer
+@using PanoramicData.ChartMagic.Demo.Services
 
 <PageTitle>ChartMagic</PageTitle>
 
@@ -40,6 +43,32 @@
 	<span class="badge missing">Not implemented</span> draws nothing
 </div>
 
+@if (Settings.IsLocal)
+{
+	@*
+		Only ever rendered on a local development host. The published site never shows this and
+		never reads or writes the settings behind it, so an API key cannot end up in the storage
+		of the public origin.
+	*@
+	<div class="comparison-bar">
+		@if (_comparison.IsConfigured)
+		{
+			<span class="comparison-state on">Comparison ready</span>
+			<span class="comparison-target">@_comparison.ServerUrl <em>via</em> @_comparison.RelayUrl</span>
+			<button type="button" class="reset-button" @onclick="ForgetSettingsAsync">Forget</button>
+		}
+		else
+		{
+			<span class="comparison-state off">Comparison off</span>
+			<span class="comparison-target">
+				Add <code>?docmagic=http://server:8080&amp;key=YOUR_KEY</code> to compare against a
+				DocMagic server, with the relay running:
+				<code>dotnet run tools/DocMagicRelay.cs</code>
+			</span>
+		}
+	</div>
+}
+
 <PDTabSet CssClass="samples" TabMinWidth="auto" TabMaxWidth="none">
 	@foreach (var sample in _samples)
 	{
@@ -65,6 +94,40 @@
 							<div class="light-only">@((MarkupString)LightSvg(state))</div>
 							<div class="dark-only">@((MarkupString)DarkSvg(state))</div>
 						</div>
+
+						@if (_comparison.IsConfigured)
+						{
+							@*
+								Directly underneath rather than side by side: both renders are the same size, and a
+								difference of a few pixels is far easier to see when one is above the other.
+							*@
+							<div class="comparison">
+								<div class="comparison-heading">
+									<span>DocMagic</span>
+									<button type="button" class="reset-button"
+										disabled="@_pending.Contains(sample.Title)"
+										@onclick="() => CompareAsync(sample.Title)">
+										@(_pending.Contains(sample.Title) ? "Rendering..." : "Render")
+									</button>
+								</div>
+
+								@if (_rendered.TryGetValue(sample.Title, out var comparison))
+								{
+									@if (comparison.HasImage)
+									{
+										<img class="comparison-image" src="@comparison.ImageDataUri" alt="Rendered by DocMagic" />
+									}
+									else
+									{
+										<p class="comparison-error">@comparison.Error</p>
+									}
+								}
+								else
+								{
+									<p class="notes">Not rendered yet.</p>
+								}
+							</div>
+						}
 					</div>
 
 					<aside class="sample-detail">
@@ -239,6 +302,12 @@
 	private readonly Dictionary<string, SampleState> _state = [];
 	private string _mode = "auto";
 
+	// The optional comparison against a DocMagic server. Off unless the demo is running locally
+	// and has been told where to find one.
+	private ComparisonConfiguration _comparison = new(null, null, false);
+	private readonly Dictionary<string, ComparisonResult> _rendered = [];
+	private readonly HashSet<string> _pending = [];
+
 	protected override void OnInitialized() => _samples = SampleCharts.All;
 
 	protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -254,8 +323,12 @@
 		if (stored != _mode)
 		{
 			_mode = stored;
-			StateHasChanged();
 		}
+
+		// Reads the comparison settings out of the query string and remembers them. Does nothing
+		// at all unless this is a local host.
+		_comparison = await Settings.LoadAsync();
+		StateHasChanged();
 	}
 
 	private async Task SetModeAsync(string mode)
@@ -264,6 +337,53 @@
 		await JS.InvokeVoidAsync("chartMagicDemo.setTheme", mode);
 	}
 
+	/// <summary>
+	/// Renders one sample on the configured DocMagic server and keeps the result.
+	/// </summary>
+	/// <remarks>
+	/// Per sample and on demand rather than for every tab at once: the corpus is thirty-odd
+	/// samples and each one is a render on a remote server.
+	/// </remarks>
+	private async Task CompareAsync(string title)
+	{
+		if (!_comparison.IsConfigured || !_pending.Add(title))
+		{
+			return;
+		}
+
+		try
+		{
+			var apiKey = await Settings.ReadApiKeyAsync();
+			if (apiKey is not { Length: > 0 })
+			{
+				_rendered[title] = new ComparisonResult(null, "No API key stored.");
+				return;
+			}
+
+			var state = _state[title];
+			_rendered[title] = await Comparer.RenderAsync(
+				_comparison,
+				apiKey,
+				state.Specification,
+				SampleCharts.WidthPixels,
+				SampleCharts.HeightPixels,
+				CancellationToken.None);
+		}
+		finally
+		{
+			_pending.Remove(title);
+		}
+	}
+
+	/// <summary>
+	/// Forgets the stored server and key, so a key need not outlive the session.
+	/// </summary>
+	private async Task ForgetSettingsAsync()
+	{
+		await Settings.ForgetAsync();
+		_comparison = await Settings.ReadAsync();
+		_rendered.Clear();
+	}
 	private SampleState StateFor(ChartSample sample)
 	{
 		if (_state.TryGetValue(sample.Title, out var existing))
