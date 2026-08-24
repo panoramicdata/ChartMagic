@@ -616,4 +616,58 @@ public class AxisAndColumnTests
 			1.0,
 			"a whole interval of padding precedes the first category, not half of one");
 	}
+
+	/// <summary>
+	/// An offset chart area moves the plot by that offset, not by twice it.
+	/// </summary>
+	/// <remarks>
+	/// SVG transforms compound, so a group nested in a translated group is already moved by its
+	/// parent. Translating it by its absolute position too moved it twice - invisible while every
+	/// parent sat at the origin, which is the common case, and glaring the moment the chart area
+	/// was offset to make room for a legend on the left: the last category fell off the canvas.
+	///
+	/// Asserted on the composed translation rather than on a drawn column, because that is where
+	/// the error was - the columns were correctly placed within a plot that was in the wrong place.
+	/// </remarks>
+	[Fact]
+	public void OffsetChartArea_DoesNotCompoundWithTheInnerPlotPosition()
+	{
+		const double ChartAreaLeftPercent = 20;
+		const double ChartAreaWidthPercent = 80;
+
+		var specification = ColumnChart(SeriesChartType.Column, 1);
+		specification.ChartAreaXPositionPercent = ChartAreaLeftPercent;
+		specification.ChartAreaWidthPercent = ChartAreaWidthPercent;
+
+		var document = Render(specification);
+
+		// What the viewer sees is the sum of the transforms down the tree.
+		var composed = TranslationX(GroupById(document, "chartArea"))
+			+ TranslationX(GroupById(document, "innerPlot"));
+
+		// The inner plot sits at its own percentage of the chart area, offset by where the chart
+		// area starts.
+		var expected = Width * (ChartAreaLeftPercent
+			+ (specification.InnerPlotXPositionPercent * ChartAreaWidthPercent / 100)) / 100;
+
+		composed.Should().BeApproximately(
+			expected,
+			0.5,
+			"the chart area offset should be applied once, by the chart area group");
+	}
+
+	/// <summary>
+	/// The X component of a group's translation, or zero where it has none.
+	/// </summary>
+	private static double TranslationX(XElement group)
+	{
+		var transform = group.Attribute("transform")?.Value;
+		if (transform is null)
+		{
+			return 0;
+		}
+
+		var inside = transform[(transform.IndexOf('(') + 1)..transform.IndexOf(')')];
+		return double.Parse(inside.Split(',')[0], CultureInfo.InvariantCulture);
+	}
 }
