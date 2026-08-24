@@ -16,7 +16,7 @@
     <PackageVersion Include="SkiaSharp" Version="3.119.2" />
     <!-- Issue #27: SkiaSharp needs its native library at runtime. Without this the Linux
          CI runner cannot load libSkiaSharp.so, so every raster test fails there. -->
-    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.2" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
     <PackageVersion Include="Svg" Version="3.4.7" />
     <PackageVersion Include="Svg.Skia" Version="4.3.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
