@@ -702,4 +702,72 @@ public class AxisAndColumnTests
 		bars.Select(r => Attribute(r, "width")).Should().BeInAscendingOrder(
 			"the first category, with the longest bar, belongs at the bottom");
 	}
+
+	/// <summary>
+	/// A column legend matches the reference render: rectangular swatches sized from the font,
+	/// spread down the legend, inset from its left edge.
+	/// </summary>
+	/// <remarks>
+	/// Every number here was measured off a reference render of the same chart - 720 by 400, a
+	/// legend occupying the right 20% at full height, three series at font size 12 - rather than
+	/// chosen. That render put 32 by 14 swatches at x 594, with row centres at y 69.5, 198.5 and
+	/// 327.5.
+	///
+	/// This drew 9 by 9 swatches at x 622 with centres 20 apart around the middle: less than a
+	/// third of the swatch area, and three entries huddled in the centre of an otherwise empty
+	/// legend. It is the residual difference on every case in the corpus that draws a legend, which
+	/// is most of them.
+	///
+	/// Tolerances are two pixels: the reference is a rasterised render measured by colour
+	/// threshold, so its own edges are only good to about a pixel.
+	/// </remarks>
+	[Fact]
+	public void ColumnLegend_MatchesTheMeasuredReferenceLayout()
+	{
+		const double ImageWidth = 720;
+		const double ImageHeight = 400;
+		const double FontSize = 12;
+
+		var specification = ColumnChart(SeriesChartType.Column, 3);
+		specification.LegendStyle = LegendStyle.Column;
+		specification.LegendXPositionPercent = 80;
+		specification.LegendYPositionPercent = 0;
+		specification.LegendWidthPercent = 20;
+		specification.LegendHeightPercent = 100;
+		specification.LegendFontSize = FontSize;
+		specification.ChartAreaWidthPercent = 80;
+
+		using var stream = new MemoryStream();
+		specification.ToChart().SaveImage(stream, ChartImageFormat.Svg, (int)ImageWidth, (int)ImageHeight);
+		var document = XDocument.Parse(Encoding.UTF8.GetString(stream.ToArray()));
+
+		var legend = GroupById(document, "legend");
+		// The legend group carries a background rect of its own, which has no position of its own
+		// and spans the whole legend, so entries are the positioned ones narrower than the legend.
+		var entries = Elements(legend, "rect")
+			.Where(r => r.Attribute("x") is not null && r.Attribute("y") is not null)
+			.Where(r => Attribute(r, "width") < ImageWidth * 0.2)
+			.OrderBy(r => Attribute(r, "y"))
+			.ToList();
+		entries.Should().HaveCount(3);
+
+		foreach (var entry in entries)
+		{
+			Attribute(entry, "width").Should().BeApproximately(32, 2, "the reference swatch is 32 wide");
+			Attribute(entry, "height").Should().BeApproximately(14, 2, "the reference swatch is 14 tall");
+			Attribute(entry, "x").Should().BeApproximately(
+				ImageWidth * 0.2 * 0.12,
+				2,
+				"the reference inset the swatch 18 pixels into a 144-wide legend");
+		}
+
+		// Centres, which is where the spread shows.
+		var centres = entries
+			.Select(r => Attribute(r, "y") + (Attribute(r, "height") / 2))
+			.ToList();
+
+		centres[0].Should().BeApproximately(69.5, 2);
+		centres[1].Should().BeApproximately(198.5, 2);
+		centres[2].Should().BeApproximately(327.5, 2);
+	}
 }
