@@ -52,6 +52,51 @@
                 } else {
                     document.documentElement.removeAttribute("data-theme");
                 }
+            },
+
+            // The comparison against a DocMagic server is a local development tool. This is what
+            // enforces that: served from anywhere else the settings are neither read nor written, so
+            // an API key cannot be left in the storage of the published origin.
+            isLocalHost: function () {
+                const host = window.location.hostname;
+                return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+            },
+
+            // Reads a query parameter and removes it from the address bar, so a key is not left
+            // sitting in the URL to be copied, shared or bookmarked.
+            takeQueryParameter: function (name) {
+                const url = new URL(window.location.href);
+                const value = url.searchParams.get(name);
+                if (value !== null) {
+                    url.searchParams.delete(name);
+                    window.history.replaceState({}, "", url.toString());
+                }
+
+                return value;
+            },
+
+            store: function (key, value) {
+                try {
+                    localStorage.setItem(key, value);
+                } catch (e) {
+                    // Nothing to do: the setting simply will not persist.
+                }
+            },
+
+            read: function (key) {
+                try {
+                    return localStorage.getItem(key);
+                } catch (e) {
+                    return null;
+                }
+            },
+
+            forget: function (key) {
+                try {
+                    localStorage.removeItem(key);
+                } catch (e) {
+                    // Nothing to do.
+                }
             }
         };
 

@@ -1,4 +1,4 @@
-using PanoramicData.ChartMagic.Extensions;
+﻿using PanoramicData.ChartMagic.Extensions;
 using PanoramicData.ChartMagic.Models;
 using System.Drawing;
 using System.Text;
@@ -63,6 +63,14 @@ public static class SampleCharts
 {
 	private const int Width = 720;
 	private const int Height = 380;
+
+	/// <summary>
+	/// The size every sample is rendered at, so a comparison can ask for the same one.
+	/// </summary>
+	public static int WidthPixels => Width;
+
+	/// <inheritdoc cref="WidthPixels"/>
+	public static int HeightPixels => Height;
 
 	/// <summary>
 	/// A deliberately translucent chart background: 20% grey, so the page shows through it.

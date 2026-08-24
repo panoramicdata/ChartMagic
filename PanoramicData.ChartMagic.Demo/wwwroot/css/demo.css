@@ -531,3 +531,69 @@ h1 { margin-bottom: 0.25rem; }
 .row-reset:disabled { opacity: 0.28; cursor: default; }
 
 .row-reset:disabled:hover { color: var(--ink-muted); border-color: var(--rule); }
+
+/*
+	The optional comparison against a DocMagic server. Local development only, so these styles are
+	never exercised on the published site.
+*/
+.comparison-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	margin: 0 0 1rem;
+	padding: 0.5rem 0.75rem;
+	border: 1px dashed var(--rule);
+	border-radius: 4px;
+	font-size: 0.85rem;
+}
+
+.comparison-state {
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.comparison-state.on {
+	color: var(--bs-success, #2e7d32);
+}
+
+.comparison-state.off {
+	color: var(--ink-muted);
+}
+
+.comparison-target {
+	color: var(--ink-muted);
+	overflow-wrap: anywhere;
+}
+
+.comparison {
+	margin-top: 1rem;
+	padding-top: 0.75rem;
+	border-top: 1px dashed var(--rule);
+}
+
+.comparison-heading {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-bottom: 0.5rem;
+	font-weight: 600;
+}
+
+/*
+	The two renders are the same size and sit one above the other, so anything that scaled one and
+	not the other would invent differences. Both are held to the same width.
+*/
+.comparison-image {
+	display: block;
+	width: 100%;
+	max-width: 720px;
+	height: auto;
+}
+
+.comparison-error {
+	margin: 0;
+	color: var(--bs-danger, #b71c1c);
+	font-size: 0.85rem;
+	overflow-wrap: anywhere;
+}
