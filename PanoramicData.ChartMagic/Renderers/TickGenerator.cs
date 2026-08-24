@@ -1,4 +1,4 @@
-namespace PanoramicData.ChartMagic.Renderers;
+﻿namespace PanoramicData.ChartMagic.Renderers;
 
 /// <summary>
 /// Chooses the values at which an axis is labelled and gridded.
@@ -139,6 +139,86 @@ internal static class TickGenerator
 		return best;
 	}
 
+	/// <summary>
+	/// The most intervals a value axis is allowed to be divided into.
+	/// </summary>
+	/// <remarks>
+	/// Measured, not chosen. Four reference renders of the same size gave five, six, seven and
+	/// seven intervals, and in each case the next smaller readable step would have given nine or
+	/// more - so the rule is a ceiling rather than a target.
+	/// </remarks>
+	private const int MaximumIntervals = 7;
+
+	/// <summary>
+	/// The step and bounds for a value axis covering this data.
+	/// </summary>
+	/// <remarks>
+	/// The step and the bounds cannot be chosen separately, because each depends on the other:
+	/// the bounds are the multiples of the step that lie just beyond the data, and whether a step
+	/// is acceptable depends on how many intervals those bounds then span. So the readable steps
+	/// are tried in ascending order and the first whose bounds span few enough intervals wins.
+	///
+	/// This replaced a step chosen from the larger of the two data extremes, which was right for
+	/// data that does not cross zero and wrong as soon as it does. Measured against reference
+	/// renders:
+	///
+	/// <list type="bullet">
+	/// <item>-11 to 26 gave a step of 10 over -20 to 30, where the old rule gave 2.5.</item>
+	/// <item>-30 to 12 gave 10 over -40 to 20.</item>
+	/// <item>-2 to 9 gave 2 over -4 to 10.</item>
+	/// <item>0 to 30 gave 5 over 0 to 35, which the old rule also produced.</item>
+	/// </list>
+	///
+	/// All four fall out of this one rule, including the positive case that the old one got right.
+	/// </remarks>
+	internal static (double Step, double Start, double End) LinearBounds(double dataMinimum, double dataMaximum)
+	{
+		var span = dataMaximum - dataMinimum;
+		if (span <= 0 || double.IsNaN(span) || double.IsInfinity(span))
+		{
+			var fallback = Math.Abs(dataMaximum) > 0 ? Math.Abs(dataMaximum) : 1;
+			return (fallback, Math.Min(0, dataMinimum), Math.Max(fallback, dataMaximum));
+		}
+
+		// From well below any plausible step for this span to well above, so the first acceptable
+		// one is always found.
+		var lowestPower = (int)Math.Floor(Math.Log10(span)) - 3;
+
+		for (var power = lowestPower; power <= lowestPower + 7; power++)
+		{
+			var magnitude = Math.Pow(10, power);
+			foreach (var multiplier in NiceMultipliers)
+			{
+				var step = multiplier * magnitude;
+				var (start, end) = BoundsFor(dataMinimum, dataMaximum, step);
+
+				if ((end - start) / step <= MaximumIntervals + 1e-9)
+				{
+					return (step, start, end);
+				}
+			}
+		}
+
+		// Unreachable for finite data, but a sane answer beats an exception.
+		var last = NiceStep(span, MaximumIntervals);
+		var (fallbackStart, fallbackEnd) = BoundsFor(dataMinimum, dataMaximum, last);
+		return (last, fallbackStart, fallbackEnd);
+	}
+
+	/// <summary>
+	/// Where an axis at this step starts and ends for this data.
+	/// </summary>
+	/// <remarks>
+	/// Zero-based whenever the data does not go below it, which is what the reference renderer
+	/// does: a column chart of positive values stands on the axis rather than floating above a
+	/// cropped one.
+	/// </remarks>
+	private static (double Start, double End) BoundsFor(double dataMinimum, double dataMaximum, double step)
+	{
+		var start = dataMinimum >= 0 ? 0 : -NextStepAbove(-dataMinimum, step);
+		var end = NextStepAbove(dataMaximum, step);
+		return (start, end);
+	}
 	/// <summary>
 	/// The smallest multiple of the step strictly greater than the value.
 	/// </summary>

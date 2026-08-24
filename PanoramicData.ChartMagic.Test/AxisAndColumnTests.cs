@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using PanoramicData.ChartMagic.Renderers;
+using System.Drawing;
 using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
@@ -979,5 +980,35 @@ public class AxisAndColumnTests
 		tops.Min().Should().BeLessThan(
 			Height * 0.1,
 			"a full stack reaches the top of the plot");
+	}
+
+	/// <summary>
+	/// The value axis chooses the step and bounds the reference renderer chooses.
+	/// </summary>
+	/// <remarks>
+	/// Every row was read off a reference render of that data, and together they are what the rule
+	/// is derived from rather than an illustration of it. The last row is the case the previous
+	/// rule already got right, kept so that fixing the negative cases cannot quietly break the
+	/// positive one - which is how the previous rule came to be wrong in the first place: it was
+	/// fitted to positive data alone and read the step off the larger extreme, which is the same
+	/// number as the span only while the data stays on one side of zero.
+	/// </remarks>
+	[Theory]
+	[InlineData(-11, 26, 10, -20, 30)]
+	[InlineData(-30, 12, 10, -40, 20)]
+	[InlineData(-2, 9, 2, -4, 10)]
+	[InlineData(0, 30, 5, 0, 35)]
+	public void ValueAxis_UsesTheMeasuredStepAndBounds(
+		double dataMinimum,
+		double dataMaximum,
+		double expectedStep,
+		double expectedStart,
+		double expectedEnd)
+	{
+		var (step, start, end) = TickGenerator.LinearBounds(dataMinimum, dataMaximum);
+
+		step.Should().Be(expectedStep, "the step measured for data from {0} to {1}", dataMinimum, dataMaximum);
+		start.Should().Be(expectedStart);
+		end.Should().Be(expectedEnd);
 	}
 }
