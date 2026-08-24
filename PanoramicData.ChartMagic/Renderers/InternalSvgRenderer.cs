@@ -263,7 +263,8 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		var legendWidth = widthPixels * legend.GetCanvasWidthPercent() / 100;
 		var legendHeight = heightPixels * legend.GetCanvasHeightPercent() / 100;
 		var fontSize = legend.FontSize;
-		var swatchSize = Math.Round(fontSize * 0.8, 2);
+		var swatchWidth = SwatchWidth(fontSize);
+		var swatchSize = SwatchHeight(fontSize);
 		var padding = Math.Round(fontSize * 0.5, 2);
 
 		var seriesIndex = 0;
@@ -285,21 +286,19 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 				case LegendStyle.Column:
 					{
-						// One row per series, stacked from the top and centred as a block, both ways.
+						// One row per series, spread down the legend rather than packed together, and
+						// left-aligned at an inset proportional to the legend width.
 						//
-						// Horizontal centring is what makes the legend width matter. Left-aligning at a fixed
-						// padding meant LegendWidthPercent changed nothing visible, so a chart could ask for a
-						// wider legend and get the same one - a setting neither honoured nor refused.
-						var lineHeight = fontSize * 1.6;
-						var blockHeight = lineHeight * chart.Series.Count;
-						var top = Math.Max(padding, (legendHeight - blockHeight) / 2);
-
-						// The widest entry sets the block width. Without text measurement that is estimated
-						// from the character count, which is enough to keep the block inside the legend.
-						var widest = chart.Series.Max(s => (s.LegendText is { Length: > 0 } ? s.LegendText : s.Name).Length);
-						var blockWidth = swatchSize + (padding / 2) + (widest * fontSize * 0.55);
-						swatchX = Math.Max(padding, Math.Round((legendWidth - blockWidth) / 2, 2));
-						swatchY = Math.Round(top + (seriesIndex * lineHeight) + ((lineHeight - swatchSize) / 2), 2);
+						// Both measured against the renderer this matches, which gives each entry an equal
+						// share of the legend height: on a 400-pixel legend it spaced three entries 129
+						// apart and two 193 apart, which is the height less one swatch, divided by the
+						// count. Packing them at 1.6 line heights put all three within 50 pixels of the
+						// middle and left most of the legend empty.
+						swatchX = Math.Round(legendWidth * LegendInsetFraction, 2);
+						swatchY = Math.Round(
+							RowCentre(legendHeight, seriesIndex, chart.Series.Count, swatchSize)
+								- (swatchSize / 2),
+							2);
 						break;
 					}
 
@@ -325,7 +324,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			var swatchNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
 			swatchNode.SetAttribute("x", swatchX.ToString(CultureInfo.InvariantCulture));
 			swatchNode.SetAttribute("y", swatchTop.ToString(CultureInfo.InvariantCulture));
-			swatchNode.SetAttribute("width", swatchSize.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("width", swatchWidth.ToString(CultureInfo.InvariantCulture));
 			swatchNode.SetAttribute("height", swatchHeight.ToString(CultureInfo.InvariantCulture));
 			swatchNode.SetAttribute("fill", swatchColor.ToHex());
 			if (swatchColor.A != 255)
@@ -340,7 +339,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			legendXmlElement.AppendChild(
 				CreateTextNode(
 					$"legendSeries{seriesIndex}Text",
-					swatchX + swatchSize + (padding / 2),
+					swatchX + swatchWidth + (padding / 2),
 					swatchY + (swatchSize / 2),
 					series.LegendText is { Length: > 0 } ? series.LegendText : series.Name,
 					HorizontalAlignment.Left,
@@ -1175,24 +1174,28 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		chartBackgroundAreaNode.AppendChild(legendXmlElement);
 
 		var legendHeight = heightPixels * legend.GetCanvasHeightPercent() / 100;
+		var legendWidth = widthPixels * legend.GetCanvasWidthPercent() / 100;
 		var fontSize = legend.FontSize;
-		var swatchSize = Math.Round(fontSize * 0.8, 2);
+		var swatchWidth = SwatchWidth(fontSize);
+		var swatchSize = SwatchHeight(fontSize);
 		var padding = Math.Round(fontSize * 0.5, 2);
+		var inset = Math.Round(legendWidth * LegendInsetFraction, 2);
 
 		// A pie legend is a list: one row per slice whatever the legend style, because slices are
-		// named and there are usually more of them than a single row would fit.
-		var lineHeight = fontSize * 1.6;
-		var top = Math.Max(padding, (legendHeight - (lineHeight * slices.Count)) / 2);
+		// named and there are usually more of them than a single row would fit. The rows share the
+		// legend height the same way a series legend does.
 
 		for (var index = 0; index < slices.Count; index++)
 		{
 			var slice = slices[index];
-			var swatchY = Math.Round(top + (index * lineHeight) + ((lineHeight - swatchSize) / 2), 2);
+			var swatchY = Math.Round(
+				RowCentre(legendHeight, index, slices.Count, swatchSize) - (swatchSize / 2),
+				2);
 
 			var swatchNode = _xmlDocument.CreateElement(string.Empty, "rect", string.Empty);
-			swatchNode.SetAttribute("x", padding.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("x", inset.ToString(CultureInfo.InvariantCulture));
 			swatchNode.SetAttribute("y", swatchY.ToString(CultureInfo.InvariantCulture));
-			swatchNode.SetAttribute("width", swatchSize.ToString(CultureInfo.InvariantCulture));
+			swatchNode.SetAttribute("width", swatchWidth.ToString(CultureInfo.InvariantCulture));
 			swatchNode.SetAttribute("height", swatchSize.ToString(CultureInfo.InvariantCulture));
 			swatchNode.SetAttribute("fill", slice.Color.ToHex());
 			legendXmlElement.AppendChild(swatchNode);
@@ -1200,7 +1203,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			legendXmlElement.AppendChild(
 				CreateTextNode(
 					FormattableString.Invariant($"legendSlice{index}Text"),
-					padding + swatchSize + (padding / 2),
+					inset + swatchWidth + (padding / 2),
 					swatchY + (swatchSize / 2),
 					slice.LegendText,
 					HorizontalAlignment.Left,
@@ -1413,6 +1416,46 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		}
 
 		return Polygon(vertices);
+	}
+	/// <summary>
+	/// How far in from the left of the legend an entry starts, as a fraction of its width.
+	/// </summary>
+	/// <remarks>
+	/// Measured: 18 pixels into a 144-wide legend and 9 into an 86-wide one, so it scales with the
+	/// legend rather than with the font. Scaling matters beyond fidelity - a fixed inset made
+	/// LegendWidthPercent change nothing visible, so a chart could ask for a wider legend and get
+	/// the same one.
+	/// </remarks>
+	private const double LegendInsetFraction = 0.12;
+
+	/// <summary>
+	/// The height of a legend swatch for a given font size.
+	/// </summary>
+	/// <remarks>
+	/// Measured on two legends against the reference render: a 12-point legend drew swatches 32 by
+	/// 14 and a 20-point one 52 by 23. Both are close to 2.6 and 1.15 times the font size, and the
+	/// shape matters - a square swatch, which is what this drew, is less than a third of the area
+	/// and reads as a different chart.
+	/// </remarks>
+	private static double SwatchHeight(double fontSize) => Math.Round(fontSize * 1.15, 2);
+
+	/// <summary>
+	/// The width of a legend swatch for a given font size.
+	/// </summary>
+	private static double SwatchWidth(double fontSize) => Math.Round(fontSize * 2.6, 2);
+
+	/// <summary>
+	/// The centre of one legend row, for entries sharing the legend height equally.
+	/// </summary>
+	/// <remarks>
+	/// The rows are spread rather than packed: the reference render spaced three entries 129 apart
+	/// and two 193 apart on a 400-pixel legend, which is the height less one swatch divided by the
+	/// count, with the block centred.
+	/// </remarks>
+	private static double RowCentre(double legendHeight, int index, int count, double swatchHeight)
+	{
+		var spacing = (legendHeight - swatchHeight) / Math.Max(count, 1);
+		return (legendHeight / 2) + ((index - ((count - 1) / 2.0)) * spacing);
 	}
 
 	/// <summary>
