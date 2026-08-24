@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
@@ -36,6 +36,19 @@ public class AxisAndColumnTests
 	private static List<XElement> Elements(XElement parent, string localName)
 		=> parent.Descendants().Where(e => e.Name.LocalName == localName).ToList();
 
+	/// <summary>
+	/// The X co-ordinates of the vertices of a path, in order.
+	/// </summary>
+	/// <remarks>
+	/// A line series is one path of move-and-line commands rather than an element per point, so
+	/// the point positions have to be read out of the geometry.
+	/// </remarks>
+	private static List<double> PathVertexXValues(XElement path)
+		=> [.. path
+			.Attribute("d")!.Value
+			.Split(['M', 'L'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+			.Select(segment => segment.Split([',', ' '])[0])
+			.Select(x => double.Parse(x, CultureInfo.InvariantCulture))];
 	private static double Attribute(XElement element, string name)
 		=> double.Parse(element.Attribute(name)!.Value, CultureInfo.InvariantCulture);
 
@@ -557,5 +570,50 @@ public class AxisAndColumnTests
 		labels.Should().HaveCount(4, "an empty collection would satisfy the assertion below");
 		labels.Should().AllSatisfy(
 			t => t.Attribute("font-size")!.Value.Should().Be("11", "the font size was carried and never used"));
+	}
+
+	/// <summary>
+	/// Categories are spaced by dividing the axis into one more interval than there are
+	/// categories, with a whole interval of padding at each end.
+	/// </summary>
+	/// <remarks>
+	/// Where the categories sit, not a rounding detail, and measured from the renderer this
+	/// matches rather than chosen: over an inner plot 488 pixels wide with seven categories it
+	/// spaced them 61 pixels apart starting 61 in - 488 / 8, where dividing by seven gives 70.
+	/// Asserted as a ratio of the plot width so it holds at any size.
+	/// </remarks>
+	[Theory]
+	[InlineData(SeriesChartType.Column)]
+	[InlineData(SeriesChartType.Line)]
+	public void Categories_AreSpacedByOneMoreIntervalThanThereAreCategories(SeriesChartType chartType)
+	{
+		var document = Render(ColumnChart(chartType, 1));
+		var series = GroupById(document, "series0");
+
+		// A column is positioned by its left edge and centred on its category, so the centre has
+		// to be reconstructed; a line passes through the centres already, so they are read off
+		// the vertices of its path.
+		var centres = chartType == SeriesChartType.Column
+			? [.. Elements(series, "rect")
+				.Select(r => Attribute(r, "x") + (Attribute(r, "width") / 2))
+				.OrderBy(x => x)]
+			: PathVertexXValues(Elements(series, "path")[0]);
+
+		centres.Should().HaveCount(Categories.Length);
+
+		// Four categories divide the axis into five intervals, so the first centre is one fifth
+		// of the way across and each is one fifth further on.
+		var interval = centres[1] - centres[0];
+		var expected = centres[^1] / Categories.Length;
+
+		interval.Should().BeApproximately(
+			expected,
+			1.0,
+			"the spacing between categories and the padding before the first are the same interval");
+
+		centres[0].Should().BeApproximately(
+			interval,
+			1.0,
+			"a whole interval of padding precedes the first category, not half of one");
 	}
 }
