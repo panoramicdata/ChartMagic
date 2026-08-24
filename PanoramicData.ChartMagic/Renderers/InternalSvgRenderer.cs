@@ -419,7 +419,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	{
 		// X Axis
 		var xAxis = chart.ChartArea.XAxis;
-		var xAxisNode = GetGroup(xAxis, "xAxis", chart.ChartArea);
+		var xAxisNode = GetAxisGroup(chart, xAxis, "xAxis");
 		chartAreaNode.AppendChild(xAxisNode);
 		if (xAxis.IsEnabled && xAxis.LabelsEnabled)
 		{
@@ -428,7 +428,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 		// Y Axis
 		var yAxis = chart.ChartArea.YAxis;
-		var yAxisNode = GetGroup(yAxis, "yAxis", chart.ChartArea);
+		var yAxisNode = GetAxisGroup(chart, yAxis, "yAxis");
 		chartAreaNode.AppendChild(yAxisNode);
 		if (yAxis.IsEnabled && yAxis.LabelsEnabled)
 		{
@@ -1456,6 +1456,39 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	{
 		var spacing = (legendHeight - swatchHeight) / Math.Max(count, 1);
 		return (legendHeight / 2) + ((index - ((count - 1) / 2.0)) * spacing);
+	}
+	/// <summary>
+	/// A positioned group for an axis, aligned to the plot it annotates.
+	/// </summary>
+	/// <remarks>
+	/// An axis frame is not an independent rectangle: it has to line up with the inner plot along
+	/// the dimension they share, or the ticks and labels it draws point at the wrong values. The
+	/// axis areas carry their own defaults - 10% in and 90% long - which do not track the plot, so
+	/// a caller that moved the plot got axes that stayed put. Measured on a chart with the report
+	/// defaults: the value axis line was drawn from y 59 to 360 where the reference render drew it
+	/// from 40 to 339, exactly the 5% of the height by which the plot had moved.
+	///
+	/// The other dimension - how wide the value-axis strip is, how tall the category-axis strip -
+	/// stays with the axis area, since that is a real setting.
+	/// </remarks>
+	private XmlElement GetAxisGroup(Chart chart, AxisArea axis, string id)
+	{
+		var innerPlot = chart.ChartArea.InnerPlot;
+		var isVertical = ReferenceEquals(axis, chart.ChartArea.YAxis)
+			|| ReferenceEquals(axis, chart.ChartArea.YAxis2Area);
+
+		if (isVertical)
+		{
+			axis.YPositionPercent = innerPlot.YPositionPercent;
+			axis.HeightPercent = innerPlot.HeightPercent;
+		}
+		else
+		{
+			axis.XPositionPercent = innerPlot.XPositionPercent;
+			axis.WidthPercent = innerPlot.WidthPercent;
+		}
+
+		return GetGroup(axis, id, chart.ChartArea);
 	}
 
 	/// <summary>

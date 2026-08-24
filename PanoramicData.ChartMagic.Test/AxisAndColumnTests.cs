@@ -770,4 +770,60 @@ public class AxisAndColumnTests
 		centres[1].Should().BeApproximately(198.5, 2);
 		centres[2].Should().BeApproximately(327.5, 2);
 	}
+
+	/// <summary>
+	/// Moving the plot moves its axes with it.
+	/// </summary>
+	/// <remarks>
+	/// An axis frame is not an independent rectangle - it has to line up with the plot along the
+	/// dimension they share, or its ticks and labels point at the wrong values. The axis areas
+	/// carried their own defaults, 10% in and 90% long, which did not track the plot: measured on a
+	/// chart with the report defaults, the value axis line ran from y 59 to 360 where the reference
+	/// render drew it from 40 to 339 - exactly the 5% of the height by which the plot had moved.
+	///
+	/// Built as a Chart rather than from a ChartSpecification on purpose. ToChart already assigns
+	/// the axis positions from the inner plot, so it hides this: a first version of this test
+	/// passed with the fix stashed. Callers that build a Chart directly - which is how the
+	/// specification translator in Magic Suite drives this library - had no such protection.
+	/// </remarks>
+	[Fact]
+	public void ValueAxis_SharesTheVerticalExtentOfThePlot()
+	{
+		var chart = new Chart();
+
+		// A plot deliberately not at the axis areas' default 10% and 90%.
+		chart.ChartArea.InnerPlot.YPositionPercent = 25;
+		chart.ChartArea.InnerPlot.HeightPercent = 60;
+
+		var series = new Series(chart.ChartArea.InnerPlot, "S")
+		{
+			ChartType = SeriesChartType.Column,
+			FillColor = Color.SteelBlue,
+			Points = Points(10, 24, 17, 31)
+		};
+		chart.Series.Add(series);
+
+		using var stream = new MemoryStream();
+		chart.SaveImage(stream, ChartImageFormat.Svg, Width, Height);
+		var document = XDocument.Parse(Encoding.UTF8.GetString(stream.ToArray()));
+
+		TranslationY(GroupById(document, "yAxis")).Should().BeApproximately(
+			TranslationY(GroupById(document, "innerPlot")),
+			0.5,
+			"the value axis starts where the plot it annotates starts");
+	}
+	/// <summary>
+	/// The Y component of a group's translation, or zero where it has none.
+	/// </summary>
+	private static double TranslationY(XElement group)
+	{
+		var transform = group.Attribute("transform")?.Value;
+		if (transform is null)
+		{
+			return 0;
+		}
+
+		var inside = transform[(transform.IndexOf('(') + 1)..transform.IndexOf(')')];
+		return double.Parse(inside.Split(',')[1], CultureInfo.InvariantCulture);
+	}
 }
