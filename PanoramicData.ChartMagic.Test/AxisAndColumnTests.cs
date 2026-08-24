@@ -826,4 +826,68 @@ public class AxisAndColumnTests
 		var inside = transform[(transform.IndexOf('(') + 1)..transform.IndexOf(')')];
 		return double.Parse(inside.Split(',')[1], CultureInfo.InvariantCulture);
 	}
+
+	/// <summary>
+	/// A row legend packs its entries and centres them, leaving room for each label.
+	/// </summary>
+	/// <remarks>
+	/// Two things at once, because they were broken by the same line. The reference render packs
+	/// the entries and centres the result rather than giving each an equal share of the width; and
+	/// a slot sized without reference to what goes in it put the next swatch on top of the
+	/// previous label once the swatch became a rectangle rather than a small square. It was plainly
+	/// visible in the demo: "Memor" then a coloured block over the rest of the word.
+	///
+	/// The room-for-the-label assertion deliberately uses a smaller per-character estimate than
+	/// the layout does, so it checks that room was left rather than restating how much.
+	/// </remarks>
+	[Fact]
+	public void RowLegend_PacksEntriesWithoutOverlappingTheirLabels()
+	{
+		const double FontSize = 12;
+		string[] labels = ["CPU", "Memory", "Disk"];
+
+		var specification = ColumnChart(SeriesChartType.Column, 3);
+		for (var index = 0; index < labels.Length; index++)
+		{
+			specification.SeriesList[index].LegendText = labels[index];
+		}
+
+		specification.LegendStyle = LegendStyle.Row;
+		specification.LegendXPositionPercent = 0;
+		specification.LegendYPositionPercent = 0;
+		specification.LegendWidthPercent = 100;
+		specification.LegendHeightPercent = 15;
+		specification.LegendFontSize = FontSize;
+
+		var document = Render(specification);
+		var legend = GroupById(document, "legend");
+
+		var swatches = Elements(legend, "rect")
+			.Where(r => r.Attribute("x") is not null && Attribute(r, "width") < Width / 2.0)
+			.OrderBy(r => Attribute(r, "x"))
+			.ToList();
+
+		swatches.Should().HaveCount(labels.Length);
+
+		// Each entry leaves room for its own label before the next one starts.
+		for (var index = 0; index < swatches.Count - 1; index++)
+		{
+			var swatchWidth = Attribute(swatches[index], "width");
+			var advance = Attribute(swatches[index + 1], "x") - Attribute(swatches[index], "x");
+
+			advance.Should().BeGreaterThan(
+				swatchWidth + (labels[index].Length * FontSize * 0.4),
+				$"the entry for {labels[index]} has to clear its own label");
+		}
+
+		// And the row sits in the middle of the legend rather than starting at its edge.
+		var first = Attribute(swatches[0], "x");
+		var last = Attribute(swatches[^1], "x") + Attribute(swatches[^1], "width");
+
+		first.Should().BeGreaterThan(0, "a centred row does not start hard against the edge");
+		((first + last) / 2).Should().BeApproximately(
+			Width / 2.0,
+			Width * 0.12,
+			"the packed row is centred, allowing for the label of the last entry not being measured");
+	}
 }

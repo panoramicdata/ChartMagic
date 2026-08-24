@@ -277,9 +277,25 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 			{
 				case LegendStyle.Row:
 					{
-						// One slot per series across the legend width.
-						var slotWidth = (legendWidth - (2 * padding)) / chart.Series.Count;
-						swatchX = padding + (seriesIndex * slotWidth);
+						// Entries packed one after another and the row centred, rather than each given an
+						// equal share of the width.
+						//
+						// Spreading them looks tidy on paper and is wrong twice over. It does not match the
+						// reference render, which packs them and centres the result; and once the swatch
+						// became a rectangle rather than a small square, a slot sized without reference to
+						// its contents put the next swatch on top of the previous label.
+						var entryWidths = chart.Series
+							.Select(series => swatchWidth + (padding / 2) + EstimateTextWidth(LegendTextFor(series), fontSize))
+							.ToList();
+
+						var gap = padding * 2;
+						var rowWidth = entryWidths.Sum() + (gap * (entryWidths.Count - 1));
+
+						swatchX = Math.Round(
+							Math.Max(padding, (legendWidth - rowWidth) / 2)
+								+ entryWidths.Take(seriesIndex).Sum()
+								+ (gap * seriesIndex),
+							2);
 						swatchY = Math.Round((legendHeight - swatchSize) / 2, 2);
 						break;
 					}
@@ -1444,6 +1460,23 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	/// </summary>
 	private static double SwatchWidth(double fontSize) => Math.Round(fontSize * 2.6, 2);
 
+	/// <summary>
+	/// A legend entry's text: its legend text where it has one, and its name otherwise.
+	/// </summary>
+	private static string LegendTextFor(Series series)
+		=> series.LegendText is { Length: > 0 } ? series.LegendText : series.Name;
+
+	/// <summary>
+	/// How wide a piece of text will be, near enough to lay a row out with.
+	/// </summary>
+	/// <remarks>
+	/// An estimate from the character count, because there is no text measurement here - the SVG
+	/// is written out rather than drawn, so nothing in this library knows a font's metrics. It is
+	/// good enough to stop entries colliding, which is what it is for; it is not good enough to
+	/// match a reference render to the pixel, and legend width fidelity is limited by that.
+	/// </remarks>
+	private static double EstimateTextWidth(string text, double fontSize)
+		=> text.Length * fontSize * 0.55;
 	/// <summary>
 	/// The centre of one legend row, for entries sharing the legend height equally.
 	/// </summary>
