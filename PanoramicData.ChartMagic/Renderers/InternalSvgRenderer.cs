@@ -1066,7 +1066,13 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 		// Labels drawn outside need room for themselves, so the pie is drawn smaller.
 		var labelsOutside = series.PieLabelStyle == PieLabelStyle.Outside;
-		var radius = Math.Min(plotWidth, plotHeight) / 2 * (labelsOutside ? 0.75 : 0.95);
+
+		// The pie is the same size whether its labels are inside or out. Shrinking it to make room
+		// for outside labels seems the considerate thing to do, but the renderer this matches does
+		// not: measured at 283 pixels across with outside labels and 285 with inside ones, where
+		// shrinking gave 225. The labels are allowed to overflow instead, which is what the
+		// reference render does - one of them sits outside the chart area entirely.
+		var radius = Math.Min(plotWidth, plotHeight) / 2 * 0.95;
 
 		// The percentage is the width of the RING, not the size of the hole, so the hole is what is
 		// left over. This was the other way round, which inverted every doughnut: the default of 60
@@ -1111,9 +1117,9 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		{
 			if (labelsOutside)
 			{
-				var from = PointOnCircle(centreX, centreY, radius, slice.MidAngleDegrees);
-				var to = PointOnCircle(centreX, centreY, radius * 1.12, slice.MidAngleDegrees);
-				pieNode.AppendChild(CreateLine(from.X, from.Y, to.X, to.Y, series.PieLineColor, 1));
+				// No leader line: the reference render draws none, and with the label sitting just clear
+				// of the edge there is nothing for one to bridge.
+				var to = PointOnCircle(centreX, centreY, radius * 1.05, slice.MidAngleDegrees);
 
 				// Anchored away from the pie, so that the text runs outwards on both sides.
 				var onTheRight = Math.Sin(ToRadians(slice.MidAngleDegrees)) >= 0;
