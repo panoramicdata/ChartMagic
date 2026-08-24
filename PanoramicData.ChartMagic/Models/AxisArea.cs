@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 
 namespace PanoramicData.ChartMagic.Models;
 
@@ -32,8 +32,12 @@ public class AxisArea(IChartElement parent, string name) : ChartNamedElement(par
 	/// Issue #31: deliberately separate from <see cref="ChartElement.StrokeColor"/>, which the
 	/// renderer applies to the axis strip's background rectangle. Reusing that would have drawn
 	/// a box around the axis strip rather than a line along its edge.
+	///
+	/// Black by default, which is what the renderer this matches draws: sampled at (0, 0, 0) on a
+	/// reference render where this drew #595959. A soft grey looks more considered, but it is a
+	/// visible difference along the whole length of both axes and every tick mark on them.
 	/// </remarks>
-	public Color LineColor { get; set; } = Color.FromArgb(0x59, 0x59, 0x59);
+	public Color LineColor { get; set; } = Color.Black;
 
 	/// <summary>
 	/// The width of the axis line and its tick marks, in pixels.
