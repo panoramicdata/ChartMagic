@@ -1066,11 +1066,24 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 		// Labels drawn outside need room for themselves, so the pie is drawn smaller.
 		var labelsOutside = series.PieLabelStyle == PieLabelStyle.Outside;
-		var radius = Math.Min(plotWidth, plotHeight) / 2 * (labelsOutside ? 0.75 : 0.95);
 
-		// The Microsoft chart control default hole is 60% of the radius.
+		// The pie is the same size whether its labels are inside or out. Shrinking it to make room
+		// for outside labels seems the considerate thing to do, but the renderer this matches does
+		// not: measured at 283 pixels across with outside labels and 285 with inside ones, where
+		// shrinking gave 225. The labels are allowed to overflow instead, which is what the
+		// reference render does - one of them sits outside the chart area entirely.
+		var radius = Math.Min(plotWidth, plotHeight) / 2 * 0.95;
+
+		// The percentage is the width of the RING, not the size of the hole, so the hole is what is
+		// left over. This was the other way round, which inverted every doughnut: the default of 60
+		// drew a 60% hole where the Microsoft chart control draws a 40% one, and asking for a thin
+		// 30% ring gave a fat one.
+		//
+		// Measured on two doughnuts against the reference render, at 285 pixels across: the default
+		// left a hole 116 wide (40.7%) and a specified 30 left one 202 wide (70.9%). Both are
+		// 100 minus the percentage, and neither is the percentage itself.
 		var innerRadius = series.ChartType == SeriesChartType.Doughnut
-			? radius * Math.Clamp(series.DoughnutRadiusPercent ?? 60, 0, 99) / 100
+			? radius * (100 - Math.Clamp(series.DoughnutRadiusPercent ?? 60, 1, 100)) / 100
 			: 0;
 
 		foreach (var slice in slices)
@@ -1104,9 +1117,9 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		{
 			if (labelsOutside)
 			{
-				var from = PointOnCircle(centreX, centreY, radius, slice.MidAngleDegrees);
-				var to = PointOnCircle(centreX, centreY, radius * 1.12, slice.MidAngleDegrees);
-				pieNode.AppendChild(CreateLine(from.X, from.Y, to.X, to.Y, series.PieLineColor, 1));
+				// No leader line: the reference render draws none, and with the label sitting just clear
+				// of the edge there is nothing for one to bridge.
+				var to = PointOnCircle(centreX, centreY, radius * 1.05, slice.MidAngleDegrees);
 
 				// Anchored away from the pie, so that the text runs outwards on both sides.
 				var onTheRight = Math.Sin(ToRadians(slice.MidAngleDegrees)) >= 0;

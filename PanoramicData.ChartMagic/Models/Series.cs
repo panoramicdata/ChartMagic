@@ -19,6 +19,14 @@ public class Series(ChartElement parent, string name) : ChartNamedElement(parent
 	/// The radius of the hole in a doughnut, as a percentage of the outer radius. Null takes
 	/// the Microsoft chart control default of 60.
 	/// </summary>
+	/// <summary>
+	/// The width of a doughnut ring, as a percentage of its radius. Defaults to 60.
+	/// </summary>
+	/// <remarks>
+	/// The ring, not the hole - the hole is what is left over, so 60 leaves a 40% hole and 30
+	/// leaves a 70% one. Named for the property it mirrors on the Microsoft chart control,
+	/// which carries the same slightly surprising meaning.
+	/// </remarks>
 	public double? DoughnutRadiusPercent { get; set; }
 
 	/// <summary>Where slice labels are drawn on a pie or doughnut.</summary>

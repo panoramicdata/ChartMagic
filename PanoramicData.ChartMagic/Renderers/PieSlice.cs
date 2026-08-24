@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 
 namespace PanoramicData.ChartMagic.Renderers;
 
@@ -174,7 +174,7 @@ internal static class PieSliceBuilder
 		return text
 			.Replace("#VALX", point.XValueString ?? point.XValue.ToString("0.##", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
 			.Replace("#VALY", value.ToString("0.##", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-			.Replace("#PERCENT", percentage.ToString("0.#", CultureInfo.InvariantCulture) + "%", StringComparison.OrdinalIgnoreCase)
+			.Replace("#PERCENT", percentage.ToString("0.00", CultureInfo.InvariantCulture) + "%", StringComparison.OrdinalIgnoreCase)
 			.Replace("#TOTAL", total.ToString("0.##", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
 			.Replace("#LEGENDTEXT", point.LegendText ?? string.Empty, StringComparison.OrdinalIgnoreCase);
 	}

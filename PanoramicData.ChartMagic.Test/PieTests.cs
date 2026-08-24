@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
@@ -169,14 +169,25 @@ public class PieTests
 		// visits the centre, which a pie wedge always does.
 		path.Should().NotStartWith(FormattableString.Invariant($"M{CentreX:F2} {CentreY:F2}"));
 
-		// The Microsoft chart control default hole is 60% of the radius.
+		// The default radius of 60 is the width of the RING, so the hole is the other 40% - not
+		// 60%, as this asserted while the renderer made the same mistake. Measured against the
+		// reference render: at 285 pixels across, its default doughnut left a hole 116 wide, which
+		// is 40.7%.
 		path.Should().Contain(
-			FormattableString.Invariant($"A{Radius * 0.6:F2} {Radius * 0.6:F2}"),
-			"the inner arc runs at the hole radius");
+			FormattableString.Invariant($"A{Radius * 0.4:F2} {Radius * 0.4:F2}"),
+			"the inner arc runs at the hole radius, which is what the ring does not occupy");
 	}
 
+	/// <summary>
+	/// A narrower ring leaves a bigger hole.
+	/// </summary>
+	/// <remarks>
+	/// Measured: asking the reference renderer for 30 left a hole 202 of 285 pixels wide, or
+	/// 70.9%. Reading the number as the hole itself inverted the shape - a request for a thin ring
+	/// drew a fat one.
+	/// </remarks>
 	[Fact]
-	public void Doughnut_HoleRadiusIsConfigurable()
+	public void Doughnut_NarrowerRingLeavesABiggerHole()
 	{
 		var specification = PieChart(SeriesChartType.Doughnut);
 		specification.DoughnutRadius = 30;
@@ -185,7 +196,7 @@ public class PieTests
 			.Attribute("d")!
 			.Value
 			.Should()
-			.Contain(FormattableString.Invariant($"A{Radius * 0.3:F2} {Radius * 0.3:F2}"));
+			.Contain(FormattableString.Invariant($"A{Radius * 0.7:F2} {Radius * 0.7:F2}"));
 	}
 
 	[Fact]
@@ -200,7 +211,7 @@ public class PieTests
 			.Attribute("d")!
 			.Value
 			.Should()
-			.Contain(FormattableString.Invariant($"A{Radius * 0.3:F2} {Radius * 0.3:F2}"));
+			.Contain(FormattableString.Invariant($"A{Radius * 0.7:F2} {Radius * 0.7:F2}"));
 	}
 
 	[Fact]
@@ -247,13 +258,41 @@ public class PieTests
 		Elements(pie!, "path").Should().HaveCount(4, "the slices are still drawn");
 	}
 
+	/// <summary>
+	/// Labels outside the pie are placed clear of the edge, with no leader lines.
+	/// </summary>
+	/// <remarks>
+	/// This asserted a leader line per label. The renderer this matches draws none - the labels
+	/// sit just clear of the edge, so there is nothing for a line to bridge - and it does not
+	/// shrink the pie to make room for them either: measured at 283 pixels across with outside
+	/// labels against 285 with inside ones, where shrinking gave 225.
+	/// </remarks>
 	[Fact]
-	public void PieChart_LabelStyleOutsideAddsALeaderLinePerSlice()
+	public void PieChart_LabelStyleOutside_PlacesLabelsBeyondTheEdgeWithoutLeaderLines()
 	{
-		var pie = GroupById(Render(PieChart(labelStyle: PieLabelStyle.Outside)), "pie");
+		var document = Render(PieChart(labelStyle: PieLabelStyle.Outside));
+		var pie = GroupById(document, "pie");
 
-		Elements(pie!, "line").Should().HaveCount(4, "one leader line per label");
+		Elements(pie!, "line").Should().BeEmpty("the reference renderer draws no leader lines");
 		Elements(pie!, "text").Should().HaveCount(4);
+
+		// Every label outside the slices, which is what "outside" has to mean if the pie is not
+		// shrunk to make room.
+		var wedge = Elements(pie!, "path")[0].Attribute("d")!.Value;
+		var pieRadius = double.Parse(
+			wedge.Split('A')[1].Trim().Split(' ')[0],
+			CultureInfo.InvariantCulture);
+
+		foreach (var text in Elements(pie!, "text"))
+		{
+			var x = double.Parse(text.Attribute("x")!.Value, CultureInfo.InvariantCulture);
+			var y = double.Parse(text.Attribute("y")!.Value, CultureInfo.InvariantCulture);
+			var distance = Math.Sqrt(Math.Pow(x - CentreX, 2) + Math.Pow(y - CentreY, 2));
+
+			distance.Should().BeGreaterThan(
+				pieRadius,
+				"a label placed outside the pie is further from the centre than the edge is");
+		}
 	}
 
 	[Fact]
@@ -265,7 +304,10 @@ public class PieTests
 		Elements(GroupById(Render(specification), "pie")!, "text")
 			.Select(t => t.Value)
 			.Should()
-			.Equal(["Q1: 25%", "Q2: 25%", "Q3: 25%", "Q4: 25%"]);
+						.Equal(
+				["Q1: 25.00%", "Q2: 25.00%", "Q3: 25.00%", "Q4: 25.00%"],
+				"#PERCENT carries two decimal places, as it does in the renderer this matches - a "
+					+ "reference render of the same chart showed 34.00%, 26.00% and 18.00%");
 	}
 
 	[Fact]
