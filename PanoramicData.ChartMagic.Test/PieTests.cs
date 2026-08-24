@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
@@ -169,14 +169,25 @@ public class PieTests
 		// visits the centre, which a pie wedge always does.
 		path.Should().NotStartWith(FormattableString.Invariant($"M{CentreX:F2} {CentreY:F2}"));
 
-		// The Microsoft chart control default hole is 60% of the radius.
+		// The default radius of 60 is the width of the RING, so the hole is the other 40% - not
+		// 60%, as this asserted while the renderer made the same mistake. Measured against the
+		// reference render: at 285 pixels across, its default doughnut left a hole 116 wide, which
+		// is 40.7%.
 		path.Should().Contain(
-			FormattableString.Invariant($"A{Radius * 0.6:F2} {Radius * 0.6:F2}"),
-			"the inner arc runs at the hole radius");
+			FormattableString.Invariant($"A{Radius * 0.4:F2} {Radius * 0.4:F2}"),
+			"the inner arc runs at the hole radius, which is what the ring does not occupy");
 	}
 
+	/// <summary>
+	/// A narrower ring leaves a bigger hole.
+	/// </summary>
+	/// <remarks>
+	/// Measured: asking the reference renderer for 30 left a hole 202 of 285 pixels wide, or
+	/// 70.9%. Reading the number as the hole itself inverted the shape - a request for a thin ring
+	/// drew a fat one.
+	/// </remarks>
 	[Fact]
-	public void Doughnut_HoleRadiusIsConfigurable()
+	public void Doughnut_NarrowerRingLeavesABiggerHole()
 	{
 		var specification = PieChart(SeriesChartType.Doughnut);
 		specification.DoughnutRadius = 30;
@@ -185,7 +196,7 @@ public class PieTests
 			.Attribute("d")!
 			.Value
 			.Should()
-			.Contain(FormattableString.Invariant($"A{Radius * 0.3:F2} {Radius * 0.3:F2}"));
+			.Contain(FormattableString.Invariant($"A{Radius * 0.7:F2} {Radius * 0.7:F2}"));
 	}
 
 	[Fact]
@@ -200,7 +211,7 @@ public class PieTests
 			.Attribute("d")!
 			.Value
 			.Should()
-			.Contain(FormattableString.Invariant($"A{Radius * 0.3:F2} {Radius * 0.3:F2}"));
+			.Contain(FormattableString.Invariant($"A{Radius * 0.7:F2} {Radius * 0.7:F2}"));
 	}
 
 	[Fact]

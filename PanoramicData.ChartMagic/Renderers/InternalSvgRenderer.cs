@@ -1068,9 +1068,16 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 		var labelsOutside = series.PieLabelStyle == PieLabelStyle.Outside;
 		var radius = Math.Min(plotWidth, plotHeight) / 2 * (labelsOutside ? 0.75 : 0.95);
 
-		// The Microsoft chart control default hole is 60% of the radius.
+		// The percentage is the width of the RING, not the size of the hole, so the hole is what is
+		// left over. This was the other way round, which inverted every doughnut: the default of 60
+		// drew a 60% hole where the Microsoft chart control draws a 40% one, and asking for a thin
+		// 30% ring gave a fat one.
+		//
+		// Measured on two doughnuts against the reference render, at 285 pixels across: the default
+		// left a hole 116 wide (40.7%) and a specified 30 left one 202 wide (70.9%). Both are
+		// 100 minus the percentage, and neither is the percentage itself.
 		var innerRadius = series.ChartType == SeriesChartType.Doughnut
-			? radius * Math.Clamp(series.DoughnutRadiusPercent ?? 60, 0, 99) / 100
+			? radius * (100 - Math.Clamp(series.DoughnutRadiusPercent ?? 60, 1, 100)) / 100
 			: 0;
 
 		foreach (var slice in slices)
