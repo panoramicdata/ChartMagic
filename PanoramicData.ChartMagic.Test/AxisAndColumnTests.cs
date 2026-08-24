@@ -890,4 +890,94 @@ public class AxisAndColumnTests
 			Width * 0.12,
 			"the packed row is centred, allowing for the label of the last entry not being measured");
 	}
+
+	/// <summary>
+	/// An area fill hangs below its own line, not from the corners of the plot.
+	/// </summary>
+	/// <remarks>
+	/// The fill used to start at the bottom-left corner of the plot and finish at the
+	/// bottom-right, which drew a diagonal ramp up to the first point and another down from the
+	/// last - inventing data on either side of the series. With a whole category interval of
+	/// padding at each end of the axis, those ramps were about a sixth of the chart wide, and
+	/// obvious next to the reference render, whose fill drops vertically at the first and last
+	/// points.
+	/// </remarks>
+	[Fact]
+	public void AreaFill_StartsAndEndsUnderTheData()
+	{
+		var specification = ColumnChart(SeriesChartType.Area, 1);
+		var document = Render(specification);
+		var series = GroupById(document, "series0");
+
+		// Two paths: the outline, and the filled area below it. The fill is the closed one.
+		var fill = Elements(series, "path")
+			.Single(path => path.Attribute("d")!.Value.EndsWith('Z'));
+
+		var vertices = PathVertexXValues(fill);
+		var line = Elements(series, "path")
+			.Single(path => !path.Attribute("d")!.Value.EndsWith('Z'));
+		var lineVertices = PathVertexXValues(line);
+
+		// The fill spans exactly the same range of X as the line it belongs to.
+		vertices.Min().Should().BeApproximately(
+			lineVertices.Min(),
+			0.5,
+			"the fill starts under the first point, not at the edge of the plot");
+
+		vertices.Max().Should().BeApproximately(
+			lineVertices.Max(),
+			0.5,
+			"the fill ends under the last point, not at the edge of the plot");
+
+		// And the padding at each end of a category axis means that is nowhere near the edge.
+		vertices.Min().Should().BeGreaterThan(1, "there is a whole category interval before the first point");
+	}
+
+	/// <summary>
+	/// A hundred per cent stacked column fills the plot, with every category summing to the top.
+	/// </summary>
+	/// <remarks>
+	/// These drew nothing at all: the chart types were in the enumeration but in none of the sets
+	/// that decide what is banded and what stacks, so every series fell through. The reference
+	/// renderer draws them, so a blank chart is the most conspicuous difference there is.
+	///
+	/// The values are shares of their category rather than amounts, so what is asserted is that
+	/// each category is full: the top of the topmost segment reaches the same height everywhere,
+	/// whatever the underlying totals.
+	/// </remarks>
+	[Fact]
+	public void PercentStackedColumns_FillEveryCategoryToTheSameHeight()
+	{
+		var specification = ColumnChart(SeriesChartType.StackedColumn100, 3);
+		var document = Render(specification);
+
+		var columns = Enumerable.Range(0, 3)
+			.SelectMany(index => Elements(GroupById(document, $"series{index}"), "rect"))
+			.Where(rect => Attribute(rect, "height") > 0)
+			.ToList();
+
+		columns.Should().NotBeEmpty("a hundred per cent stacked column chart draws columns");
+
+		// Grouped by category, using the left edge, since the three series share a slot.
+		var byCategory = columns
+			.GroupBy(rect => Math.Round(Attribute(rect, "x")))
+			.ToList();
+
+		byCategory.Should().HaveCount(Categories.Length);
+
+		// The top of the tallest segment in each category, which is where the stack finishes.
+		var tops = byCategory
+			.Select(group => group.Min(rect => Attribute(rect, "y")))
+			.ToList();
+
+		tops.Max().Should().BeApproximately(
+			tops.Min(),
+			1.5,
+			"every category is full, so every stack finishes at the same height");
+
+		// And full means the top of the axis, not some height derived from the data.
+		tops.Min().Should().BeLessThan(
+			Height * 0.1,
+			"a full stack reaches the top of the plot");
+	}
 }
