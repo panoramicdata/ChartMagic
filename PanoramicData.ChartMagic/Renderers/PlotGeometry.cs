@@ -110,23 +110,17 @@ internal sealed class PlotGeometry
 		{
 			var dataMinimum = axisHandlerResult.MinY ?? 0;
 			var dataMaximum = axisHandlerResult.MaxY ?? 0;
-			var provisionalRange = Math.Max(Math.Abs(dataMaximum), Math.Abs(dataMinimum));
-			ValueAxisInterval = TickGenerator.NiceStep(
-				provisionalRange > 0 ? provisionalRange : 1,
-				chart.ChartArea.YAxis.TargetTickCount);
+
+			// The step and the bounds are chosen together, because each depends on the other.
+			var (step, start, end) = TickGenerator.LinearBounds(dataMinimum, dataMaximum);
+			ValueAxisInterval = step;
 
 			if (chart.ChartArea.YAxis.Min is null)
 			{
-				// Zero-based unless the data goes below zero, in which case the axis extends down
-				// to a whole interval instead.
-				_yDisplayStart = dataMinimum >= 0
-					? 0
-					: -TickGenerator.NextStepAbove(-dataMinimum, ValueAxisInterval.Value);
+				_yDisplayStart = start;
 			}
 
-			var end = chart.ChartArea.YAxis.Max
-				?? TickGenerator.NextStepAbove(dataMaximum, ValueAxisInterval.Value);
-			_yDisplayRange = end - _yDisplayStart;
+			_yDisplayRange = (chart.ChartArea.YAxis.Max ?? end) - _yDisplayStart;
 		}
 		// Logarithmic bounds are snapped out to whole decades, so the axis reads
 		// 1, 10, 100 rather than starting partway up a decade.

@@ -42,4 +42,13 @@
     </PackageReference>
     <PackageReference Include="Svg" />
   </ItemGroup>
+  <ItemGroup>
+    <!--
+      The tests assert on rendered SVG wherever the behaviour is visible in it. The value axis
+      rule is not: it is a calculation whose inputs and outputs are exactly what was measured off
+      the reference renders, so it is tested directly rather than inferred back out of tick labels.
+    -->
+    <InternalsVisibleTo Include="PanoramicData.ChartMagic.Test" />
+  </ItemGroup>
+
 </Project>
