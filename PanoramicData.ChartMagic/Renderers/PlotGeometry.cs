@@ -219,6 +219,13 @@ internal sealed class PlotGeometry
 	/// <summary>
 	/// The centre of a category along the category axis.
 	/// </summary>
+	/// <remarks>
+	/// On a horizontal plot the category axis runs upwards: the first category is at the bottom
+	/// and the last at the top, which is how the renderer this matches draws a bar chart, and the
+	/// opposite of the order the categories are given in. Measured on a seven-day bar chart -
+	/// reading the bar lengths off the reference render top to bottom gave Sunday first and Monday
+	/// last. Drawing them in the order given put every category against the wrong label.
+	/// </remarks>
 	internal double CategoryToPixels(double xValue)
 	{
 		var index = _categories.IndexOf(xValue);
@@ -227,7 +234,13 @@ internal sealed class PlotGeometry
 			index = 0;
 		}
 
-		return Math.Round((index + 1) * CategoryBandExtent, 2);
+		var distanceAlongAxis = (index + 1) * CategoryBandExtent;
+
+		// Distances are measured down the plot, so an axis that runs upwards is that distance
+		// taken from the far edge.
+		return Math.Round(
+			IsHorizontalPlot ? Height - distanceAlongAxis : distanceAlongAxis,
+			2);
 	}
 
 	/// <summary>

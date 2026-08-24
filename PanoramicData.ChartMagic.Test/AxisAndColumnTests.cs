@@ -670,4 +670,36 @@ public class AxisAndColumnTests
 		var inside = transform[(transform.IndexOf('(') + 1)..transform.IndexOf(')')];
 		return double.Parse(inside.Split(',')[0], CultureInfo.InvariantCulture);
 	}
+
+	/// <summary>
+	/// A bar chart puts its first category at the bottom.
+	/// </summary>
+	/// <remarks>
+	/// The category axis of a horizontal plot runs upwards, which is the opposite of the order the
+	/// categories are given in and of how a column chart lays them out left to right. Measured on a
+	/// seven-day bar chart: reading the bar lengths off the reference render from the top gave
+	/// Sunday first and Monday last. Drawing them in the order given put every bar against the
+	/// wrong label - the chart was not subtly out, it was reporting the wrong days.
+	/// </remarks>
+	[Fact]
+	public void BarChart_PutsTheFirstCategoryAtTheBottom()
+	{
+		// Descending values, so the first category is identifiable by having the longest bar
+		// whichever end it is drawn at.
+		var specification = ColumnChart(SeriesChartType.Bar, 1);
+		specification.SeriesList[0].Points = Points(40, 30, 20, 10);
+
+		var document = Render(specification);
+
+		var bars = Elements(GroupById(document, "series0"), "rect")
+			.Where(r => Attribute(r, "width") > 0)
+			.OrderBy(r => Attribute(r, "y"))
+			.ToList();
+
+		bars.Should().HaveCount(Categories.Length);
+
+		// Top to bottom, so the longest bar - the first category - comes last.
+		bars.Select(r => Attribute(r, "width")).Should().BeInAscendingOrder(
+			"the first category, with the longest bar, belongs at the bottom");
+	}
 }
