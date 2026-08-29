@@ -29,6 +29,14 @@
     <NoWarn>$(NoWarn);CS1587;CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Issue #60: the font is embedded so text renders on hosts whose SkiaSharp build has no
+         font manager. Liberation Sans is SIL OFL 1.1 - see Fonts/LiberationSans-copyright.txt, whose
+         GPL-2+ section covers Debian packaging we do not ship. It is metrically
+         compatible with Arial, so label widths match the reference renderer. -->
+    <EmbeddedResource Include="Fonts\LiberationSans-Regular.ttf" />
+    <None Include="Fonts\LiberationSans-copyright.txt" Pack="true" PackagePath="" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="LICENSE" Pack="true" PackagePath="" />
     <None Include="README.md" Pack="true" PackagePath="" />
     <None Include="Panoramic Data.png" Pack="true" PackagePath="\" />
