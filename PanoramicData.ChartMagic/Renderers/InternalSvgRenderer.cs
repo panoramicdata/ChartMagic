@@ -7,6 +7,15 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 	private readonly XmlDocument _xmlDocument = new();
 
 	/// <summary>
+	/// The font named on every text node when the chart does not name one.
+	/// </summary>
+	/// <remarks>
+	/// Issue #60. Led by the embedded face so an SVG opened elsewhere matches our own raster
+	/// output, then Arial and the generics for consumers that have neither.
+	/// </remarks>
+	private const string DefaultFontFamilyStack = "Liberation Sans, Arial, Helvetica, sans-serif";
+
+	/// <summary>
 	/// Gap between a tick mark and the label that belongs to it, in pixels.
 	/// </summary>
 	private const double TickLabelGapPixels = 4;
@@ -211,10 +220,16 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 		textNode.SetAttribute("font-weight", fontWeight.ToString().ToLowerInvariant());
 		textNode.SetAttribute("font-size", fontSize.ToString(CultureInfo.InvariantCulture));
-		if (fontFamily is { Length: > 0 })
-		{
-			textNode.SetAttribute("font-family", fontFamily);
-		}
+		// Issue #60: always name a font, defaulting to the one embedded in this assembly.
+		//
+		// This does not affect our own raster output - EmbeddedTypefaceProvider answers every
+		// request there regardless - but SVG is a public output format, and a browser or an
+		// editor opening one would otherwise pick its own default and lay the text out
+		// differently from the PNG of the same chart. The stack is for those consumers;
+		// Svg.Skia ignores everything after the first entry.
+		textNode.SetAttribute(
+			"font-family",
+			fontFamily is { Length: > 0 } ? fontFamily : DefaultFontFamilyStack);
 
 		if (strokeColor != Colors.Transparent)
 		{

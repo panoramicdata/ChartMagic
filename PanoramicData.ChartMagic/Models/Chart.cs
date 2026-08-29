@@ -1,4 +1,5 @@
 ﻿using SkiaSharp;
+using PanoramicData.ChartMagic.Renderers;
 using Svg.Skia;
 
 namespace PanoramicData.ChartMagic.Models;
@@ -50,6 +51,12 @@ public class Chart : RootChartElement
 		canvas.Clear(SKColors.White);
 
 		using var skSvg = new SKSvg();
+
+		// Issue #60: draw text with the font carried in this assembly rather than one the host
+		// happens to have. Inserted ahead of the system providers so the choice is ours on every
+		// platform; see EmbeddedTypefaceProvider for why the obvious alternatives do not work.
+		skSvg.Settings.TypefaceProviders?.Insert(0, new EmbeddedTypefaceProvider());
+
 		skSvg.Load(svgStream);
 		if (skSvg.Picture is null)
 		{
