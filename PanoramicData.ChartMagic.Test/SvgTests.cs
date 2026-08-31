@@ -26,10 +26,6 @@ public class SvgTests : RenderTest
 			SaveFile(BasicChartSpecification, fileInfo);
 			fileInfo.Exists.Should().BeTrue();
 		}
-		catch (Exception)
-		{
-			throw;
-		}
 		finally
 		{
 			fileInfo.Delete();

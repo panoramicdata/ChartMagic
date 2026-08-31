@@ -6,7 +6,7 @@
   <ItemGroup>
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="AwesomeAssertions.Analyzers" Version="9.0.8" />
-    <PackageVersion Include="Divergic.Logging.Xunit" Version="4.3.1" />
+    <PackageVersion Include="Neovolve.Logging.Xunit.v3" Version="7.2.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.94" />
     <!-- Demo site (Blazor WebAssembly, published to GitHub Pages) -->
@@ -18,7 +18,6 @@
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
     <PackageVersion Include="Svg" Version="3.4.8" />
     <PackageVersion Include="Svg.Skia" Version="5.2.3" />
-    <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.0" />
     <PackageVersion Include="PanoramicData.Blazor" Version="10.0.215" />

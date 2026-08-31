@@ -175,15 +175,9 @@ public static class SpecificationEditor
 	private static EditorKind KindOf(PropertyInfo property)
 	{
 		var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-
-		if (!property.CanWrite)
+		if (!property.CanWrite || (!type.IsEnum && !IsEditableScalar(type)))
 		{
 			return EditorKind.ReadOnly;
-		}
-
-		if (type == typeof(bool))
-		{
-			return EditorKind.Boolean;
 		}
 
 		if (type.IsEnum)
@@ -191,24 +185,24 @@ public static class SpecificationEditor
 			return EditorKind.Enumeration;
 		}
 
-		if (type == typeof(Color))
+		return type.Name switch
 		{
-			return EditorKind.Colour;
-		}
-
-		if (type == typeof(int) || type == typeof(double) || type == typeof(float) || type == typeof(long))
-		{
-			return EditorKind.Number;
-		}
-
-		if (type == typeof(string) || type == typeof(object))
-		{
-			return EditorKind.Text;
-		}
-
-		// A list: shown so that its presence is visible, but not editable here.
-		return EditorKind.ReadOnly;
+			nameof(Boolean) => EditorKind.Boolean,
+			nameof(Color) => EditorKind.Colour,
+			nameof(Int32) or nameof(Int64) or nameof(Double) or nameof(Single) => EditorKind.Number,
+			_ => EditorKind.Text
+		};
 	}
+
+
+	private static bool IsEditableScalar(Type type) => type == typeof(bool)
+		|| type == typeof(Color)
+		|| type == typeof(int)
+		|| type == typeof(long)
+		|| type == typeof(double)
+		|| type == typeof(float)
+		|| type == typeof(string)
+		|| type == typeof(object);
 
 	private static IReadOnlyList<string> OptionsOf(PropertyInfo property)
 	{
@@ -258,80 +252,80 @@ public static class SpecificationEditor
 	};
 	private static bool TryParse(Type target, string? text, out object? parsed)
 	{
-		parsed = null;
 		var underlying = Nullable.GetUnderlyingType(target) ?? target;
-		var isNullable = Nullable.GetUnderlyingType(target) is not null || !target.IsValueType;
-
 		if (string.IsNullOrWhiteSpace(text))
 		{
-			if (!isNullable)
-			{
-				return false;
-			}
-
-			// An empty string is a legitimate value for a string property, and null for the rest.
-			parsed = underlying == typeof(string) ? string.Empty : null;
-			return true;
+			return TryParseEmpty(target, underlying, out parsed);
 		}
 
-		text = text.Trim();
+		return TryParseNonEmpty(underlying, text.Trim(), out parsed);
+	}
 
-		if (underlying == typeof(string) || underlying == typeof(object))
+	private static bool TryParseEmpty(Type target, Type underlying, out object? parsed)
+	{
+		parsed = null;
+		if (Nullable.GetUnderlyingType(target) is null && target.IsValueType)
+		{
+			return false;
+		}
+
+		parsed = underlying == typeof(string) ? string.Empty : null;
+		return true;
+	}
+
+	private static bool TryParseNonEmpty(Type type, string text, out object? parsed)
+	{
+		if (type == typeof(string) || type == typeof(object))
 		{
 			parsed = text;
 			return true;
 		}
 
-		if (underlying == typeof(bool))
+		if (type.IsEnum)
 		{
-			if (!bool.TryParse(text, out var flag))
-			{
-				return false;
-			}
-
-			parsed = flag;
-			return true;
+			return Enum.TryParse(type, text, ignoreCase: true, out parsed);
 		}
 
-		if (underlying.IsEnum)
-		{
-			if (!Enum.TryParse(underlying, text, ignoreCase: true, out var value))
-			{
-				return false;
-			}
-
-			parsed = value;
-			return true;
-		}
-
-		if (underlying == typeof(Color))
+		if (type == typeof(Color))
 		{
 			return TryParseColour(text, out parsed);
 		}
 
-		if (underlying == typeof(int) || underlying == typeof(long))
+		if (type == typeof(bool))
 		{
-			if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var whole))
-			{
-				return false;
-			}
-
-			parsed = underlying == typeof(int) ? (int)whole : whole;
-			return true;
+			return TryParseBoolean(text, out parsed);
 		}
 
-		if (underlying == typeof(double) || underlying == typeof(float))
-		{
-			if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
-			{
-				return false;
-			}
+		return TryParseNumber(type, text, out parsed);
+	}
 
-			parsed = underlying == typeof(double) ? number : (float)number;
-			return true;
+	private static bool TryParseBoolean(string text, out object? parsed)
+	{
+		var succeeded = bool.TryParse(text, out var value);
+		parsed = succeeded ? value : null;
+		return succeeded;
+	}
+
+	private static bool TryParseNumber(Type type, string text, out object? parsed)
+	{
+		if (type == typeof(int) || type == typeof(long))
+		{
+			return TryParseWholeNumber(type, text, out parsed);
 		}
 
-		return false;
+		double number = 0;
+		var supported = type == typeof(double) || type == typeof(float);
+		var succeeded = supported
+			&& double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number);
+		parsed = succeeded ? type == typeof(double) ? number : (float)number : null;
+		return succeeded;
+	}
+
+	private static bool TryParseWholeNumber(Type type, string text, out object? parsed)
+	{
+		var succeeded = long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var whole);
+		parsed = succeeded ? type == typeof(int) ? (int)whole : whole : null;
+		return succeeded;
 	}
 
 	/// <summary>
@@ -344,8 +338,6 @@ public static class SpecificationEditor
 	/// </remarks>
 	private static bool TryParseColour(string text, out object? parsed)
 	{
-		parsed = null;
-
 		if (string.Equals(text, "transparent", StringComparison.OrdinalIgnoreCase))
 		{
 			parsed = Color.FromArgb(0, 0, 0, 0);
@@ -354,65 +346,67 @@ public static class SpecificationEditor
 
 		if (text.StartsWith("rgb", StringComparison.OrdinalIgnoreCase))
 		{
-			var inside = text[(text.IndexOf('(', StringComparison.Ordinal) + 1)..].TrimEnd(')');
-			var parts = inside.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-			if (parts.Length is < 3 or > 4
-				|| !int.TryParse(parts[0], CultureInfo.InvariantCulture, out var red)
-				|| !int.TryParse(parts[1], CultureInfo.InvariantCulture, out var green)
-				|| !int.TryParse(parts[2], CultureInfo.InvariantCulture, out var blue))
-			{
-				return false;
-			}
-
-			var alpha = 1.0;
-			if (parts.Length == 4 && !double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out alpha))
-			{
-				return false;
-			}
-
-			parsed = Color.FromArgb(
-				(int)Math.Round(Math.Clamp(alpha, 0, 1) * 255),
-				Math.Clamp(red, 0, 255),
-				Math.Clamp(green, 0, 255),
-				Math.Clamp(blue, 0, 255));
-			return true;
+			return TryParseRgb(text, out parsed);
 		}
 
 		if (text.StartsWith('#'))
 		{
-			var hex = text[1..];
-			if (hex.Length == 3)
-			{
-				// Shorthand: each digit doubled.
-				hex = string.Concat(hex.Select(c => new string(c, 2)));
-			}
-
-			if (!uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
-			{
-				return false;
-			}
-
-			parsed = hex.Length switch
-			{
-				6 => Color.FromArgb(255, (int)((value >> 16) & 0xFF), (int)((value >> 8) & 0xFF), (int)(value & 0xFF)),
-				8 => Color.FromArgb((int)(value & 0xFF), (int)((value >> 24) & 0xFF), (int)((value >> 16) & 0xFF), (int)((value >> 8) & 0xFF)),
-				_ => null
-			};
-
-			return parsed is not null;
+			return TryParseHex(text[1..], out parsed);
 		}
 
 		var named = Color.FromName(text);
+		parsed = named.IsKnownColor ? named : null;
+		return named.IsKnownColor;
+	}
 
-		// FromName returns a non-known, alpha-zero colour for anything it does not recognise,
-		// which would otherwise silently paint nothing.
-		if (!named.IsKnownColor)
+	private static bool TryParseRgb(string text, out object? parsed)
+	{
+		parsed = null;
+		var inside = text[(text.IndexOf('(', StringComparison.Ordinal) + 1)..].TrimEnd(')');
+		var parts = inside.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+		if (parts.Length is < 3 or > 4
+			|| !int.TryParse(parts[0], CultureInfo.InvariantCulture, out var red)
+			|| !int.TryParse(parts[1], CultureInfo.InvariantCulture, out var green)
+			|| !int.TryParse(parts[2], CultureInfo.InvariantCulture, out var blue))
 		{
 			return false;
 		}
 
-		parsed = named;
+		var alpha = 1.0;
+		if (parts.Length == 4
+			&& !double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out alpha))
+		{
+			return false;
+		}
+
+		parsed = Color.FromArgb(
+			(int)Math.Round(Math.Clamp(alpha, 0, 1) * 255),
+			Math.Clamp(red, 0, 255),
+			Math.Clamp(green, 0, 255),
+			Math.Clamp(blue, 0, 255));
 		return true;
+	}
+
+	private static bool TryParseHex(string hex, out object? parsed)
+	{
+		if (hex.Length == 3)
+		{
+			hex = string.Concat(hex.Select(character => new string(character, 2)));
+		}
+
+		if (!uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value))
+		{
+			parsed = null;
+			return false;
+		}
+
+		parsed = hex.Length switch
+		{
+			6 => Color.FromArgb(255, (int)((value >> 16) & 0xFF), (int)((value >> 8) & 0xFF), (int)(value & 0xFF)),
+			8 => Color.FromArgb((int)(value & 0xFF), (int)((value >> 24) & 0xFF), (int)((value >> 16) & 0xFF), (int)((value >> 8) & 0xFF)),
+			_ => null
+		};
+		return parsed is not null;
 	}
 
 	/// <summary>

@@ -55,42 +55,11 @@ public sealed class DocMagicComparer(HttpClient httpClient)
 		try
 		{
 			var body = DocMagicRequest.Build(specification, widthPixels, heightPixels);
-
-			using var request = new HttpRequestMessage(
-				HttpMethod.Post,
-				$"{configuration.RelayUrl!.TrimEnd('/')}/chart")
-			{
-				Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json")
-			};
-
-			// The relay forwards to whichever server it is told, with whichever key it is given.
-			request.Headers.Add("X-Target-Url", configuration.ServerUrl);
-			request.Headers.Add("X-API-KEY", apiKey);
-
+			using var request = CreateRequest(configuration, apiKey, body);
 			using var response = await httpClient.SendAsync(request, cancellationToken);
-
 			if (!response.IsSuccessStatusCode)
 			{
-				var status = (int)response.StatusCode;
-				var detail = Shorten(await response.Content.ReadAsStringAsync(cancellationToken));
-
-				// Which side is at fault decides what the reader should do about it, so say so. A
-				// rejected request usually means the specification asks for something the endpoint will
-				// not accept, and editing it again is the fix; a server error is not the reader's to fix.
-				var summary = status switch
-				{
-					400 => "The server rejected the specification",
-					401 or 403 => "The server rejected the API key",
-					404 => "No chart endpoint there - is this a Windows DocMagic?",
-					>= 500 => "The server failed to render it",
-					_ => "The server did not render it"
-				};
-
-				return new ComparisonResult(
-					null,
-					detail.Length > 0
-						? $"{summary} ({status}): {detail}"
-						: $"{summary} ({status})");
+				return await FailureResult(response, cancellationToken);
 			}
 
 			var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
@@ -113,6 +82,42 @@ public sealed class DocMagicComparer(HttpClient httpClient)
 		{
 			return new ComparisonResult(null, "The render timed out.");
 		}
+	}
+
+	private static HttpRequestMessage CreateRequest(
+		ComparisonConfiguration configuration,
+		string apiKey,
+		string body)
+	{
+		var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			$"{configuration.RelayUrl!.TrimEnd('/')}/chart")
+		{
+			Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json")
+		};
+		request.Headers.Add("X-Target-Url", configuration.ServerUrl);
+		request.Headers.Add("X-API-KEY", apiKey);
+		return request;
+	}
+
+	private static async Task<ComparisonResult> FailureResult(
+		HttpResponseMessage response,
+		CancellationToken cancellationToken)
+	{
+		var status = (int)response.StatusCode;
+		var detail = Shorten(await response.Content.ReadAsStringAsync(cancellationToken));
+		var summary = status switch
+		{
+			400 => "The server rejected the specification",
+			401 or 403 => "The server rejected the API key",
+			404 => "No chart endpoint there - is this a Windows DocMagic?",
+			>= 500 => "The server failed to render it",
+			_ => "The server did not render it"
+		};
+		var message = detail.Length > 0
+			? $"{summary} ({status}): {detail}"
+			: $"{summary} ({status})";
+		return new ComparisonResult(null, message);
 	}
 
 	private static string Shorten(string text)

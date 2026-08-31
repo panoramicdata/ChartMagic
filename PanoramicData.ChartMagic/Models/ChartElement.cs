@@ -37,18 +37,18 @@ public abstract class ChartElement(IChartElement parent) : ChartElementBase(pare
 	public ChartDashStyle StrokeStyle { get; set; }
 
 	internal double GetCanvasXLocationPercent()
-		=> Parent is ChartElement parent && !parent.IsRoot
-			? XPositionPercent * parent.GetCanvasWidthPercent() / 100 + parent.GetCanvasXLocationPercent()
+		=> Parent is ChartElement parentElement && !parentElement.IsRoot
+			? XPositionPercent * parentElement.GetCanvasWidthPercent() / 100 + parentElement.GetCanvasXLocationPercent()
 			: XPositionPercent;
 
 	internal double GetCanvasYLocationPercent()
-		=> Parent is ChartElement parent && !parent.IsRoot
-			? YPositionPercent * parent.GetCanvasHeightPercent() / 100 + parent.GetCanvasYLocationPercent()
+		=> Parent is ChartElement parentElement && !parentElement.IsRoot
+			? YPositionPercent * parentElement.GetCanvasHeightPercent() / 100 + parentElement.GetCanvasYLocationPercent()
 			: YPositionPercent;
 
 	internal double GetCanvasWidthPercent()
-		=> WidthPercent * ((Parent is ChartElement parent && !parent.IsRoot) ? parent.GetCanvasWidthPercent() / 100 : 1);
+		=> WidthPercent * ((Parent is ChartElement parentElement && !parentElement.IsRoot) ? parentElement.GetCanvasWidthPercent() / 100 : 1);
 
 	internal double GetCanvasHeightPercent()
-		=> HeightPercent * ((Parent is ChartElement parent && !parent.IsRoot) ? parent.GetCanvasHeightPercent() / 100 : 1);
+		=> HeightPercent * ((Parent is ChartElement parentElement && !parentElement.IsRoot) ? parentElement.GetCanvasHeightPercent() / 100 : 1);
 }

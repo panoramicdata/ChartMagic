@@ -238,7 +238,7 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 		textNode.SetAttribute("fill", fillColor.ToHex());
 
-		if (rotationDegrees != 0)
+		if (Math.Abs(rotationDegrees) > 1e-10)
 		{
 			textNode.SetAttribute(
 				"transform",
@@ -829,8 +829,6 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 
 	private void PlotSeries(Chart chart, PlotGeometry geometry, XmlElement defs, XmlElement innerPlotNode)
 	{
-		var innerPlotHeight = geometry.Height;
-		var innerPlotWidth = geometry.Width;
 		var stackedColumnDictionary = new Dictionary<string, double>();
 		var stackedAreaDictionary = new Dictionary<string, double>();
 		var stackLines = _xmlDocument.CreateElement(string.Empty, "g", string.Empty);
@@ -966,6 +964,9 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 					seriesNode.AppendChild(areaNode);
 
 					break;
+
+				default:
+					break;
 			}
 
 			// Line
@@ -995,6 +996,9 @@ internal class InternalSvgRenderer(int widthPixels, int heightPixels, bool debug
 						stackLines.AppendChild(markerNode);
 					}
 
+					break;
+
+				default:
 					break;
 			}
 

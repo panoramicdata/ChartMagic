@@ -10,7 +10,7 @@ internal class AxisHandler(Chart chart)
 			// Nothing to do
 			result.SeriesPresent = false;
 			return result;
-		};
+		}
 
 		result.MinY = chart.Series.Min(s => s.Points.Where(p => p.YValue is not null).Min(p => (double)p.YValue!));
 		result.MaxXCount = chart.Series.Max(s => s.Points.Count);

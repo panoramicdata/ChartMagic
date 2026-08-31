@@ -246,7 +246,6 @@ public static class DocMagicRequest
 		{
 			index++;
 			writer.WriteStartObject();
-
 			writer.WriteNumber("ChartType", ToEndpointValue(series.ChartType));
 			writer.WriteString("Name", series.LegendText is { Length: > 0 } ? series.LegendText : $"Series {index}");
 			writer.WriteBoolean("IsXValueIndexed", series.IsXValueIndexed);
@@ -267,40 +266,34 @@ public static class DocMagicRequest
 				writer.WriteString("LegendText", series.LegendText);
 			}
 
-			writer.WriteStartArray("Points");
-			foreach (var point in series.Points)
+			WritePoints(writer, series.Points);
+			writer.WriteEndObject();
+		}
+
+		writer.WriteEndArray();
+	}
+
+	private static void WritePoints(Utf8JsonWriter writer, List<ChartPoint> points)
+	{
+		writer.WriteStartArray("Points");
+		foreach (var point in points)
+		{
+			writer.WriteStartObject();
+			if (point.XValueString is { Length: > 0 })
 			{
-				writer.WriteStartObject();
-
-				// A labelled point is positioned by its label there, which is what makes the axis
-				// categorical; an unlabelled one by its number.
-				if (point.XValueString is { Length: > 0 })
-				{
-					writer.WriteString("XValue", point.XValueString);
-				}
-				else
-				{
-					writer.WriteNumber("XValue", point.XValue);
-				}
-
-				if (point.YValue is { } yValue)
-				{
-					writer.WriteNumber("YValue", yValue);
-				}
-				else
-				{
-					writer.WriteNull("YValue");
-				}
-
-				if (point.Color is { } pointColour)
-				{
-					writer.WriteString("Color", FormatColour(pointColour));
-				}
-
-				writer.WriteEndObject();
+				writer.WriteString("XValue", point.XValueString);
+			}
+			else
+			{
+				writer.WriteNumber("XValue", point.XValue);
 			}
 
-			writer.WriteEndArray();
+			WriteNamed(writer, "YValue", point.YValue);
+			if (point.Color is { } pointColour)
+			{
+				writer.WriteString("Color", FormatColour(pointColour));
+			}
+
 			writer.WriteEndObject();
 		}
 
@@ -395,33 +388,38 @@ public static class DocMagicRequest
 				break;
 
 			case IEnumerable list:
-				writer.WriteStartArray(name);
-				foreach (var item in list)
-				{
-					switch (item)
-					{
-						case null:
-							writer.WriteNullValue();
-							break;
-						case Color itemColour:
-							writer.WriteStringValue(FormatColour(itemColour));
-							break;
-						case Enum itemEnumeration:
-							writer.WriteNumberValue(ToEndpointValue(itemEnumeration));
-							break;
-						default:
-							writer.WriteStringValue(Convert.ToString(item, CultureInfo.InvariantCulture));
-							break;
-					}
-				}
-
-				writer.WriteEndArray();
+				WriteArray(writer, name, list);
 				break;
 
 			default:
 				writer.WriteNumber(name, Convert.ToDouble(value, CultureInfo.InvariantCulture));
 				break;
 		}
+	}
+
+	private static void WriteArray(Utf8JsonWriter writer, string name, IEnumerable items)
+	{
+		writer.WriteStartArray(name);
+		foreach (var item in items)
+		{
+			switch (item)
+			{
+				case null:
+					writer.WriteNullValue();
+					break;
+				case Color colour:
+					writer.WriteStringValue(FormatColour(colour));
+					break;
+				case Enum enumeration:
+					writer.WriteNumberValue(ToEndpointValue(enumeration));
+					break;
+				default:
+					writer.WriteStringValue(Convert.ToString(item, CultureInfo.InvariantCulture));
+					break;
+			}
+		}
+
+		writer.WriteEndArray();
 	}
 
 	/// <summary>

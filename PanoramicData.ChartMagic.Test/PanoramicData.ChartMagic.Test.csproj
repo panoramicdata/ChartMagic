@@ -10,7 +10,7 @@
     <NoWarn>$(NoWarn);CS1591;CA1051;CA1805;CA2201</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Divergic.Logging.Xunit" />
+    <PackageReference Include="Neovolve.Logging.Xunit.v3" />
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="AwesomeAssertions.Analyzers">
       <PrivateAssets>all</PrivateAssets>
@@ -22,7 +22,7 @@
          consumers, so the test project brings its own. -->
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

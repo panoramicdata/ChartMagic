@@ -5,6 +5,13 @@ internal static class XmlElementExtensions
 	internal static void SetStyle(this XmlElement xmlElement, ChartNamedElement element, bool applyFill = true, bool applyStroke = true)
 	{
 		var style = new List<string>();
+		AddFillStyle(style, element, applyFill);
+		AddStrokeStyle(style, element, applyStroke);
+		xmlElement.SetAttribute("style", string.Join(";", style));
+	}
+
+	private static void AddFillStyle(List<string> style, ChartNamedElement element, bool applyFill)
+	{
 		if (applyFill && element.FillColor != Colors.Transparent)
 		{
 			style.Add($"fill:{element.FillColor.ToHex()}");
@@ -18,8 +25,12 @@ internal static class XmlElementExtensions
 		}
 		else
 		{
-			style.Add($"fill:none");
+			style.Add("fill:none");
 		}
+	}
+
+	private static void AddStrokeStyle(List<string> style, ChartNamedElement element, bool applyStroke)
+	{
 		if (applyStroke && element.StrokeColor != Colors.Transparent && element.StrokeWidth != 0)
 		{
 			style.Add($"stroke:{element.StrokeColor.ToHex()}");
@@ -28,51 +39,44 @@ internal static class XmlElementExtensions
 				style.Add($"stroke-opacity:{(element.StrokeColor.A / 255f).ToString("F2", CultureInfo.InvariantCulture)}");
 			}
 
-			switch (element.StrokeStyle)
+			var dashArray = element.StrokeStyle switch
 			{
-				case ChartDashStyle.Dash:
-					style.Add("stroke-dasharray:5,2");
-					break;
-				case ChartDashStyle.DashDot:
-					style.Add("stroke-dasharray:5,2,1,2");
-					break;
-				case ChartDashStyle.DashDotDot:
-					style.Add("stroke-dasharray:5,2,1,2,1,2");
-					break;
-				case ChartDashStyle.Dot:
-					style.Add("stroke-dasharray:5,2");
-					break;
+				ChartDashStyle.Dash => "5,2",
+				ChartDashStyle.DashDot => "5,2,1,2",
+				ChartDashStyle.DashDotDot => "5,2,1,2,1,2",
+				ChartDashStyle.Dot => "5,2",
+				_ => null
+			};
+			if (dashArray is not null)
+			{
+				style.Add($"stroke-dasharray:{dashArray}");
 			}
 
-			if(element.StrokeLineCapStyle == StrokeLineCapStyle.Square)
+			var lineCap = element.StrokeLineCapStyle switch
 			{
-				style.Add("stroke-linecap:square");
+				StrokeLineCapStyle.Square => "square",
+				StrokeLineCapStyle.Round => "round",
+				_ => null
+			};
+			if (lineCap is not null)
+			{
+				style.Add($"stroke-linecap:{lineCap}");
 			}
 
-			else if(element.StrokeLineCapStyle == StrokeLineCapStyle.Round)
+			var lineJoin = element.StrokeLineJoinStyle switch
 			{
-				style.Add("stroke-linecap:round");
-			}
-
-			switch (element.StrokeLineJoinStyle)
+				StrokeLineJoinStyle.Arcs => "arcs",
+				StrokeLineJoinStyle.Bevel => "bevel",
+				StrokeLineJoinStyle.MiterClip => "miter-clip",
+				StrokeLineJoinStyle.Round => "round",
+				_ => null
+			};
+			if (lineJoin is not null)
 			{
-				case StrokeLineJoinStyle.Arcs:
-					style.Add("stroke-linejoin:arcs");
-					break;
-				case StrokeLineJoinStyle.Bevel:
-					style.Add("stroke-linejoin:bevel");
-					break;
-				case StrokeLineJoinStyle.MiterClip:
-					style.Add("stroke-linejoin:miter-clip");
-					break;
-				case StrokeLineJoinStyle.Round:
-					style.Add("stroke-linejoin:round");
-					break;
+				style.Add($"stroke-linejoin:{lineJoin}");
 			}
 
 			style.Add($"stroke-width:{element.StrokeWidth.ToString(CultureInfo.InvariantCulture)}");
 		}
-
-		xmlElement.SetAttribute("style", string.Join(";", style));
 	}
 }

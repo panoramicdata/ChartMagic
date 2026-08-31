@@ -13,8 +13,8 @@ internal sealed class PlotGeometry
 {
 	private readonly double _xDisplayStart;
 	private readonly double _xDisplayRange;
-	private double _yDisplayStart;
-	private double _yDisplayRange;
+	private readonly double _yDisplayStart;
+	private readonly double _yDisplayRange;
 	private readonly double _yLogStart;
 	private readonly double _yLogRange;
 	private readonly List<double> _categories = [];
@@ -25,39 +25,33 @@ internal sealed class PlotGeometry
 	{
 		Width = width;
 		Height = height;
-
 		_xDisplayStart = chart.ChartArea.XAxis.Min ?? axisHandlerResult.MinX ?? 0;
 		var xDisplayEnd = chart.ChartArea.XAxis.Max ?? axisHandlerResult.MaxX ?? 0;
 		_xDisplayRange = xDisplayEnd - _xDisplayStart;
 		XDisplayStart = _xDisplayStart;
 		XDisplayEnd = xDisplayEnd;
 
-		_yDisplayStart = chart.ChartArea.YAxis.Min ?? axisHandlerResult.MinY ?? 0;
-		var yDisplayEnd = chart.ChartArea.YAxis.Max ?? axisHandlerResult.MaxY ?? 0;
-		_yDisplayRange = yDisplayEnd - _yDisplayStart;
-
-		// A column or bar occupies a band rather than a point, so a plot containing one is
-		// laid out by category: N categories divide the width evenly and each is drawn at the
-		// centre of its band. Any line or area series in the same plot follows the same
-		// mapping, which is what keeps them aligned with the columns.
-		var bandedSeries = chart.Series.Where(s => IsBanded(s.ChartType)).ToList();
-
-		// The axis is categorical if a column or bar needs a band to stand in, and also if the
-		// data supplied labels rather than numbers. Without the second case a line chart over
-		// seven named days was labelled at generated numeric intervals instead, which showed
-		// every other day and dropped the rest.
+		var bandedSeries = chart.Series.Where(series => IsBanded(series.ChartType)).ToList();
 		IsCategorical = bandedSeries.Count > 0
 			|| chart.Series.SelectMany(s => s.Points).Any(p => p.XValueString is { Length: > 0 });
+		IsHorizontalPlot = bandedSeries.Count > 0
+			&& bandedSeries.TrueForAll(series => IsHorizontal(series.ChartType));
+		YIsLogarithmic = chart.ChartArea.YAxis.IsLogarithmic;
+		PopulateCategories(chart);
 
-		// A plot is horizontal only when every banded series in it is. Mixing bars and columns
-		// in one plot has no single sensible orientation, so it falls back to vertical.
-		// Count first: TrueForAll is vacuously true on an empty list, so without it a line
-		// chart over labelled categories - which has no banded series at all - was treated as
-		// horizontal and rendered with its axes swapped.
-		IsHorizontalPlot = bandedSeries.Count > 0 && bandedSeries.TrueForAll(s => IsHorizontal(s.ChartType));
+		IsPercentStackedPlot = chart.Series.Any(series => IsPercentStacked(series.ChartType));
+		if (IsPercentStackedPlot)
+		{
+			PopulateCategoryTotals(chart);
+		}
 
-		// The categories, in the order they will be laid out, and their labels.
-		foreach (var point in chart.Series.SelectMany(s => s.Points))
+		(ValueAxisInterval, _yDisplayStart, _yDisplayRange) = GetLinearAxis(chart, axisHandlerResult);
+		(YLogMinimum, YLogMaximum, _yLogStart, _yLogRange) = GetLogarithmicAxis(chart);
+	}
+
+	private void PopulateCategories(Chart chart)
+	{
+		foreach (var point in chart.Series.SelectMany(series => series.Points))
 		{
 			if (!_categoryLabels.ContainsKey(point.XValue) && point.XValueString is not null)
 			{
@@ -71,80 +65,64 @@ internal sealed class PlotGeometry
 		}
 
 		_categories.Sort();
+	}
 
-		// The displayed value range, matching what the Microsoft chart control chooses.
-		//
-		// Measured against DocMagic across four data sets: its value axis is zero-based and runs
-		// to the next multiple of the interval strictly above the data maximum. A peak of 30
-		// gave an axis to 35, a peak of 32 also gave 35, and a peak of 280 gave 300 - so it is
-		// not plain rounding up to the next tick, which would have left the first at 30 with the
-		// tallest column touching the frame.
-		//
-		// This applies to every chart type, not only columns. The line case looked close on a
-		// pixel count purely because a thin line covers few pixels: its axis ran 11.5 to 30.75
-		// against DocMagic 0 to 35, which is not close at all.
-		// A hundred per cent stacked chart plots shares of a category, not amounts, so the totals
-		// are needed before anything can be positioned and the axis is a fixed nought to a
-		// hundred rather than something derived from the data.
-		IsPercentStackedPlot = chart.Series.Any(series => IsPercentStacked(series.ChartType));
+	private void PopulateCategoryTotals(Chart chart)
+	{
+		foreach (var point in chart.Series
+			.Where(series => IsPercentStacked(series.ChartType))
+			.SelectMany(series => series.Points))
+		{
+			_categoryTotals[point.XValue] =
+				_categoryTotals.GetValueOrDefault(point.XValue) + Math.Abs(point.YValue ?? 0);
+		}
+	}
+
+	private (double? Interval, double Start, double Range) GetLinearAxis(
+		Chart chart,
+		AxisHandlerResult axisHandlerResult)
+	{
+		var initialStart = chart.ChartArea.YAxis.Min ?? axisHandlerResult.MinY ?? 0;
 		if (IsPercentStackedPlot)
 		{
-			foreach (var point in chart.Series
-				.Where(series => IsPercentStacked(series.ChartType))
-				.SelectMany(series => series.Points))
-			{
-				// Absolute values, so that a negative share still contributes its size to the total
-				// rather than cancelling a positive one and sending the percentages past a hundred.
-				_categoryTotals[point.XValue] =
-					_categoryTotals.GetValueOrDefault(point.XValue) + Math.Abs(point.YValue ?? 0);
-			}
+			var percentStart = chart.ChartArea.YAxis.Min ?? 0;
+			return (20, percentStart, (chart.ChartArea.YAxis.Max ?? 100) - percentStart);
 		}
 
-		if (IsPercentStackedPlot)
-		{
-			ValueAxisInterval = 20;
-			_yDisplayStart = chart.ChartArea.YAxis.Min ?? 0;
-			_yDisplayRange = (chart.ChartArea.YAxis.Max ?? 100) - _yDisplayStart;
-		}
-		else if (!YIsLogarithmic)
-		{
-			var dataMinimum = axisHandlerResult.MinY ?? 0;
-			var dataMaximum = axisHandlerResult.MaxY ?? 0;
-
-			// The step and the bounds are chosen together, because each depends on the other.
-			var (step, start, end) = TickGenerator.LinearBounds(dataMinimum, dataMaximum);
-			ValueAxisInterval = step;
-
-			if (chart.ChartArea.YAxis.Min is null)
-			{
-				_yDisplayStart = start;
-			}
-
-			_yDisplayRange = (chart.ChartArea.YAxis.Max ?? end) - _yDisplayStart;
-		}
-		// Logarithmic bounds are snapped out to whole decades, so the axis reads
-		// 1, 10, 100 rather than starting partway up a decade.
-		YIsLogarithmic = chart.ChartArea.YAxis.IsLogarithmic;
 		if (YIsLogarithmic)
 		{
-			var positiveValues = chart.Series
-				.SelectMany(s => s.Points)
-				.Where(p => p.YValue is > 0)
-				.Select(p => p.YValue!.Value)
-				.ToList();
-
-			var smallest = chart.ChartArea.YAxis.Min is > 0
-				? chart.ChartArea.YAxis.Min!.Value
-				: positiveValues.Count > 0 ? positiveValues.Min() : 1;
-			var largest = chart.ChartArea.YAxis.Max is > 0
-				? chart.ChartArea.YAxis.Max!.Value
-				: positiveValues.Count > 0 ? positiveValues.Max() : 10;
-
-			YLogMinimum = Math.Pow(10, Math.Floor(Math.Log10(smallest)));
-			YLogMaximum = Math.Pow(10, Math.Ceiling(Math.Log10(largest <= smallest ? smallest * 10 : largest)));
-			_yLogStart = Math.Log10(YLogMinimum);
-			_yLogRange = Math.Log10(YLogMaximum) - _yLogStart;
+			var end = chart.ChartArea.YAxis.Max ?? axisHandlerResult.MaxY ?? 0;
+			return (null, initialStart, end - initialStart);
 		}
+
+		var (step, generatedStart, generatedEnd) = TickGenerator.LinearBounds(
+			axisHandlerResult.MinY ?? 0,
+			axisHandlerResult.MaxY ?? 0);
+		var start = chart.ChartArea.YAxis.Min ?? generatedStart;
+		return (step, start, (chart.ChartArea.YAxis.Max ?? generatedEnd) - start);
+	}
+
+	private static (double Minimum, double Maximum, double Start, double Range) GetLogarithmicAxis(Chart chart)
+	{
+		if (!chart.ChartArea.YAxis.IsLogarithmic)
+		{
+			return (0, 0, 0, 0);
+		}
+
+		var positiveValues = chart.Series.SelectMany(series => series.Points)
+			.Where(point => point.YValue is > 0)
+			.Select(point => point.YValue!.Value)
+			.ToList();
+		var smallest = chart.ChartArea.YAxis.Min is > 0
+			? chart.ChartArea.YAxis.Min.Value
+			: positiveValues.Count > 0 ? positiveValues.Min() : 1;
+		var largest = chart.ChartArea.YAxis.Max is > 0
+			? chart.ChartArea.YAxis.Max.Value
+			: positiveValues.Count > 0 ? positiveValues.Max() : 10;
+		var minimum = Math.Pow(10, Math.Floor(Math.Log10(smallest)));
+		var maximum = Math.Pow(10, Math.Ceiling(Math.Log10(largest <= smallest ? smallest * 10 : largest)));
+		var start = Math.Log10(minimum);
+		return (minimum, maximum, start, Math.Log10(maximum) - start);
 	}
 
 	internal double Width { get; }
@@ -193,7 +171,7 @@ internal sealed class PlotGeometry
 	internal double ToPercentOfCategory(double xValue, double value)
 	{
 		var total = _categoryTotals.GetValueOrDefault(xValue);
-		return total == 0 ? 0 : value / total * 100;
+		return IsNearlyZero(total) ? 0 : value / total * 100;
 	}
 
 	/// <summary>
@@ -305,7 +283,7 @@ internal sealed class PlotGeometry
 			return YToPixels(yValue);
 		}
 
-		return _yDisplayRange == 0
+		return IsNearlyZero(_yDisplayRange)
 			? 0
 			: Math.Round(Width * (yValue - _yDisplayStart) / _yDisplayRange, 2);
 	}
@@ -332,7 +310,7 @@ internal sealed class PlotGeometry
 			return Math.Round((index + 1) * BandWidth, 2);
 		}
 
-		return _xDisplayRange == 0
+		return IsNearlyZero(_xDisplayRange)
 			? 0
 			: Math.Round(Width * (xValue - _xDisplayStart) / _xDisplayRange, 2);
 	}
@@ -341,7 +319,7 @@ internal sealed class PlotGeometry
 	{
 		if (YIsLogarithmic)
 		{
-			if (_yLogRange == 0)
+			if (IsNearlyZero(_yLogRange))
 			{
 				return Height;
 			}
@@ -352,7 +330,7 @@ internal sealed class PlotGeometry
 			return Math.Round(Height * (1 - ((Math.Log10(clamped) - _yLogStart) / _yLogRange)), 2);
 		}
 
-		return _yDisplayRange == 0
+		return IsNearlyZero(_yDisplayRange)
 			? Height
 			: Math.Round(Height * (1 - ((yValue - _yDisplayStart) / _yDisplayRange)), 2);
 	}
@@ -362,4 +340,6 @@ internal sealed class PlotGeometry
 	/// </summary>
 	internal string? CategoryLabel(double xValue)
 		=> _categoryLabels.TryGetValue(xValue, out var label) ? label : null;
+
+	private static bool IsNearlyZero(double value) => Math.Abs(value) < 1e-10;
 }

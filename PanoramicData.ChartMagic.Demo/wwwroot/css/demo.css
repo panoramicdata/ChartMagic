@@ -4,18 +4,20 @@
  * "system" setting, where only prefers-color-scheme separates light from dark.
  */
 :root {
-	--page: #ffffff;
+	--page: #fff;
 	--ink: #1f2328;
 	--ink-muted: #3d444d;
 	--rule: #d1d9e0;
 	--panel: #f6f8fa;
 	--stripe: rgba(15, 23, 42, 0.05);
-	--working-bg: #dafbe1; --working-fg: #1a7f37;
-	--partial-bg: #fff8c5; --partial-fg: #7d4e00;
-	--missing-bg: #ffebe9; --missing-fg: #a40e26;
+	--working-bg: #dafbe1;
+	--working-fg: #1a7f37;
+	--partial-bg: #fff8c5;
+	--partial-fg: #7d4e00;
+	--missing-bg: #ffebe9;
+	--missing-fg: #a40e26;
 	--ring-track: #e0e0e0;
 	--ring-fill: #1b6ec2;
-
 	--bs-body-bg: var(--page);
 	--bs-body-color: var(--ink);
 	--bs-border-color: var(--rule);
@@ -37,12 +39,14 @@
 		--rule: #3d444d;
 		--panel: #161b22;
 		--stripe: rgba(255, 255, 255, 0.06);
-		--working-bg: #1b3a24; --working-fg: #6fd48a;
-		--partial-bg: #3d2f04; --partial-fg: #e0c369;
-		--missing-bg: #46181c; --missing-fg: #ff9492;
+		--working-bg: #1b3a24;
+		--working-fg: #6fd48a;
+		--partial-bg: #3d2f04;
+		--partial-fg: #e0c369;
+		--missing-bg: #46181c;
+		--missing-fg: #ff9492;
 		--ring-track: #30363d;
 		--ring-fill: #4493f8;
-
 		--bs-primary: #4493f8;
 		--bs-primary-rgb: 68, 147, 248;
 		--bs-primary-bg-subtle: #10263f;
@@ -58,9 +62,12 @@
 	--rule: #3d444d;
 	--panel: #161b22;
 	--stripe: rgba(255, 255, 255, 0.06);
-	--working-bg: #1b3a24; --working-fg: #6fd48a;
-	--partial-bg: #3d2f04; --partial-fg: #e0c369;
-	--missing-bg: #46181c; --missing-fg: #ff9492;
+	--working-bg: #1b3a24;
+	--working-fg: #6fd48a;
+	--partial-bg: #3d2f04;
+	--partial-fg: #e0c369;
+	--missing-bg: #46181c;
+	--missing-fg: #ff9492;
 	--ring-track: #30363d;
 	--ring-fill: #4493f8;
 
@@ -72,21 +79,37 @@
 }
 
 /* Show only the render that matches the reader colour scheme. */
-.dark-only { display: none; }
-.light-only { display: block; }
-
-@media (prefers-color-scheme: dark) {
-	:root:not([data-theme="light"]) .dark-only { display: block; }
-	:root:not([data-theme="light"]) .light-only { display: none; }
+.dark-only {
+	display: none;
 }
 
-:root[data-theme="dark"] .dark-only { display: block; }
-:root[data-theme="dark"] .light-only { display: none; }
+.light-only {
+	display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) .dark-only {
+		display: block;
+	}
+
+	:root:not([data-theme="light"]) .light-only {
+		display: none;
+	}
+}
+
+:root[data-theme="dark"] .dark-only {
+	display: block;
+}
+
+:root[data-theme="dark"] .light-only {
+	display: none;
+}
 
 body {
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 	margin: 0 auto;
 	padding: 2rem 1.5rem 4rem;
+
 	/* Full page width: the samples pair a chart with a table of properties, and both want room. */
 	max-width: none;
 	color: var(--ink);
@@ -94,9 +117,14 @@ body {
 	line-height: 1.5;
 }
 
-h1 { margin-bottom: 0.25rem; }
+h1 {
+	margin-bottom: 0.25rem;
+}
 
-.lead { font-size: 1.05rem; color: var(--ink-muted); }
+.lead {
+	font-size: 1.05rem;
+	color: var(--ink-muted);
+}
 
 .status-key {
 	margin: 1.5rem 0 2rem;
@@ -107,8 +135,23 @@ h1 { margin-bottom: 0.25rem; }
 	font-size: 0.9rem;
 }
 
-.status-key .badge { margin-left: 0.5rem; }
-.status-key .badge:first-child { margin-left: 0; }
+.badge {
+	font-size: 0.72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	padding: 0.15rem 0.5rem;
+	border-radius: 999px;
+	white-space: nowrap;
+}
+
+.status-key .badge {
+	margin-left: 0.5rem;
+}
+
+.status-key .badge:first-child {
+	margin-left: 0;
+}
 
 .sample {
 	margin: 2.5rem 0;
@@ -124,21 +167,26 @@ h1 { margin-bottom: 0.25rem; }
 	margin-bottom: 0.35rem;
 }
 
-.notes { color: var(--ink-muted); font-size: 0.92rem; margin-top: 0; }
-
-.badge {
-	font-size: 0.72rem;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
-	padding: 0.15rem 0.5rem;
-	border-radius: 999px;
-	white-space: nowrap;
+.notes {
+	color: var(--ink-muted);
+	font-size: 0.92rem;
+	margin-top: 0;
 }
 
-.badge.working { background: var(--working-bg); color: var(--working-fg); }
-.badge.partial { background: var(--partial-bg); color: var(--partial-fg); }
-.badge.missing { background: var(--missing-bg); color: var(--missing-fg); }
+.badge.working {
+	background: var(--working-bg);
+	color: var(--working-fg);
+}
+
+.badge.partial {
+	background: var(--partial-bg);
+	color: var(--partial-fg);
+}
+
+.badge.missing {
+	background: var(--missing-bg);
+	color: var(--missing-fg);
+}
 
 /*
  * The chart is an inline SVG with its own intrinsic size; keep it inside the column.
@@ -159,7 +207,11 @@ h1 { margin-bottom: 0.25rem; }
 }
 
 /* Fill the column: the SVG carries a viewBox, so it scales rather than crops. */
-.chart svg { display: block; width: 100%; height: auto; }
+.chart svg {
+	display: block;
+	width: 100%;
+	height: auto;
+}
 
 /*
  * Styles the markup the Blazor template puts in index.html: the boot progress ring and the
@@ -340,11 +392,19 @@ h1 { margin-bottom: 0.25rem; }
 	padding: 4px 8px 0;
 }
 
-.samples .pdtabset-tab-container { flex: 0 0 auto; }
+.samples .pdtabset-tab-container {
+	flex: 0 0 auto;
+}
 
-.samples .pdtabset-tab { font-size: 0.85rem; padding: 8px 12px 6px; }
+.samples .pdtabset-tab {
+	font-size: 0.85rem;
+	padding: 8px 12px 6px;
+}
 
-.samples .pdtabset-tab-title { overflow: visible; text-overflow: clip; }
+.samples .pdtabset-tab-title {
+	overflow: visible;
+	text-overflow: clip;
+}
 
 .samples .pdtabset-content {
 	border: 1px solid var(--rule);
@@ -373,7 +433,10 @@ h1 { margin-bottom: 0.25rem; }
 	white-space: nowrap;
 }
 
-.detail-table td { width: auto; white-space: normal; }
+.detail-table td {
+	width: auto;
+	white-space: normal;
+}
 
 /* Section headings within the table, so the columns stay aligned across sections. */
 .detail-table tr.section th {
@@ -384,7 +447,9 @@ h1 { margin-bottom: 0.25rem; }
 	width: auto;
 }
 
-.detail-table { table-layout: auto; }
+.detail-table {
+	table-layout: auto;
+}
 
 /* Editors in the properties table. */
 .editor-table input[type="text"],
@@ -401,7 +466,14 @@ h1 { margin-bottom: 0.25rem; }
 	padding: 0.1rem 0.25rem;
 }
 
-.editor-table td { padding: 0.1rem 0.25rem; }
+.editor-table td {
+	padding: 0.1rem 0.25rem;
+}
+
+.read-only {
+	font-style: italic;
+	color: var(--ink-muted);
+}
 
 /* A property still at its default is dimmed, so what the sample sets stands out. */
 .editor-table tr.is-default th,
@@ -414,8 +486,6 @@ h1 { margin-bottom: 0.25rem; }
 .editor-table tr.is-default select {
 	color: var(--ink-muted);
 }
-
-.read-only { font-style: italic; color: var(--ink-muted); }
 
 .reset-button {
 	appearance: none;
@@ -455,7 +525,10 @@ h1 { margin-bottom: 0.25rem; }
 	gap: 0.25rem;
 }
 
-.editor-cell > :first-child { flex: 1 1 auto; min-width: 0; }
+.editor-cell > :first-child {
+	flex: 1 1 auto;
+	min-width: 0;
+}
 
 .row-reset {
 	appearance: none;
@@ -470,7 +543,10 @@ h1 { margin-bottom: 0.25rem; }
 	cursor: pointer;
 }
 
-.row-reset:hover { color: var(--ink); border-color: var(--ink-muted); }
+.row-reset:hover {
+	color: var(--ink);
+	border-color: var(--ink-muted);
+}
 
 /*
  * PDColorPicker expects Bootstrap button classes, which the demo does not load. Enough of
@@ -492,7 +568,9 @@ h1 { margin-bottom: 0.25rem; }
 	cursor: pointer;
 }
 
-.editor-table .pd-color-picker-container { position: relative; }
+.editor-table .pd-color-picker-container {
+	position: relative;
+}
 
 .editor-table .pd-color-swatch {
 	position: relative;
@@ -516,7 +594,10 @@ h1 { margin-bottom: 0.25rem; }
 	background-color: #fff;
 }
 
-.editor-table .pd-color-swatch-color { position: absolute; inset: 0; }
+.editor-table .pd-color-swatch-color {
+	position: absolute;
+	inset: 0;
+}
 
 .editor-table .pd-color-picker-popup {
 	position: absolute;
@@ -528,9 +609,15 @@ h1 { margin-bottom: 0.25rem; }
 	padding: 0.5rem;
 }
 
-.row-reset:disabled { opacity: 0.28; cursor: default; }
+.row-reset:disabled {
+	opacity: 0.28;
+	cursor: default;
+}
 
-.row-reset:disabled:hover { color: var(--ink-muted); border-color: var(--rule); }
+.row-reset:disabled:hover {
+	color: var(--ink-muted);
+	border-color: var(--rule);
+}
 
 /*
 	The optional comparison against a DocMagic server. Local development only, so these styles are

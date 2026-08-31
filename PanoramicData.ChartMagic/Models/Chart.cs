@@ -6,7 +6,7 @@ namespace PanoramicData.ChartMagic.Models;
 
 public class Chart : RootChartElement
 {
-	public Chart() : base()
+	public Chart()
 	{
 		ChartBackgroundArea = new(this, "Chart Background Area");
 		ChartArea = new(ChartBackgroundArea, "Chart Area");
@@ -32,7 +32,7 @@ public class Chart : RootChartElement
 	public void SaveImage(Stream stream, ChartImageFormat chartImageFormat, int widthPixels, int heightPixels)
 		=> SaveImage(stream, chartImageFormat, widthPixels, heightPixels, false);
 
-	public void SaveImage(Stream stream, ChartImageFormat format, int width, int height, bool debug = false)
+	public void SaveImage(Stream stream, ChartImageFormat format, int width, int height, bool debug)
 	{
 		if (format == ChartImageFormat.Svg)
 		{
