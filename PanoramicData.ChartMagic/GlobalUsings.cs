@@ -2,6 +2,7 @@
 global using PanoramicData.ChartMagic.Interfaces;
 global using PanoramicData.ChartMagic.Models;
 global using PanoramicData.ChartMagic.Renderers;
+global using PanoramicData.ChartMagic.Renderers.RenderModels;
 global using Svg;
 global using System;
 global using System.Collections.Generic;

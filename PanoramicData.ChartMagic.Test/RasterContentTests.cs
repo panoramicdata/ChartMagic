@@ -1,4 +1,4 @@
-using SkiaSharp;
+﻿using SkiaSharp;
 
 namespace PanoramicData.ChartMagic.Test;
 
@@ -18,7 +18,7 @@ public class RasterContentTests : RenderTest
 	[Fact]
 	public void Png_ContainsManyDistinctColours()
 	{
-		var distinctColours = CountDistinctColours(RenderToPngBytes());
+		var distinctColours = CountDistinctColours(RenderToPngBytes(BasicChartSpecification));
 
 		distinctColours.Should().BeGreaterThan(
 			32,
@@ -31,7 +31,7 @@ public class RasterContentTests : RenderTest
 	/// </summary>
 	[Fact]
 	public void Png_IsNotASingleFlatColour()
-		=> CountDistinctColours(RenderToPngBytes())
+		=> CountDistinctColours(RenderToPngBytes(BasicChartSpecification))
 			.Should()
 			.BeGreaterThan(1, "the image should not be one flat colour");
 
@@ -42,7 +42,7 @@ public class RasterContentTests : RenderTest
 	[Fact]
 	public void Png_HasContentAcrossTheCanvas()
 	{
-		using var bitmap = SKBitmap.Decode(RenderToPngBytes());
+		using var bitmap = SKBitmap.Decode(RenderToPngBytes(BasicChartSpecification));
 
 		var centre = bitmap.GetPixel(bitmap.Width / 2, bitmap.Height / 2);
 		var quarter = bitmap.GetPixel(bitmap.Width / 4, bitmap.Height / 2);
@@ -52,24 +52,6 @@ public class RasterContentTests : RenderTest
 		sampled.Count.Should().BeGreaterThan(
 			1,
 			"three widely separated samples should not all be the same colour");
-	}
-
-	private byte[] RenderToPngBytes()
-	{
-		var fileInfo = GetTempFileName(ChartImageFormat.Png);
-		try
-		{
-			SaveFile(BasicChartSpecification, fileInfo);
-			return File.ReadAllBytes(fileInfo.FullName);
-		}
-		finally
-		{
-			fileInfo.Refresh();
-			if (fileInfo.Exists)
-			{
-				fileInfo.Delete();
-			}
-		}
 	}
 
 	private static int CountDistinctColours(byte[] pngBytes)

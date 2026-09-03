@@ -61,28 +61,78 @@ internal static class PieSliceBuilder
 	/// </summary>
 	internal static List<PieSlice> Build(Series series)
 	{
-		var values = series.Points
-			.Where(p => p.YValue is not null)
-			.Select(p => (Point: p, Value: Math.Abs(p.YValue!.Value)))
-			.Where(p => p.Value > 0)
-			.ToList();
-
+		var values = PositiveValues(series);
 		var total = values.Sum(v => v.Value);
 		if (total <= 0)
 		{
 			return [];
 		}
 
-		// Slices below the threshold are combined into one, as the Microsoft chart control does
-		// when CollectedThreshold is set with CollectedThresholdUsePercent.
-		var threshold = series.PieCollectedThresholdPercent;
+		var (kept, collectedValue) = Partition(values, total, series.PieCollectedThresholdPercent);
+
+		var slices = new List<PieSlice>();
+		var angle = series.PieStartAngleDegrees;
+		var paletteIndex = 0;
+
+		foreach (var entry in kept)
+		{
+			var percentage = entry.Value / total * 100;
+			var sweep = percentage / 100 * 360;
+
+			slices.Add(new PieSlice(
+				Label: LabelFor(series, entry.Point, entry.Value, percentage, total),
+				LegendText: LegendTextFor(entry.Point, entry.Value),
+				Value: entry.Value,
+				Percentage: percentage,
+				Color: entry.Point.Color ?? FallbackPalette[paletteIndex++ % FallbackPalette.Length],
+				StartAngleDegrees: angle,
+				SweepAngleDegrees: sweep));
+
+			angle += sweep;
+		}
+
+		if (collectedValue > 0)
+		{
+			slices.Add(CollectedSlice(series, collectedValue, total, angle));
+		}
+
+		return slices;
+	}
+
+	/// <summary>
+	/// The points that can be drawn as a slice, with the magnitude each contributes.
+	/// </summary>
+	private static List<(ChartPoint Point, double Value)> PositiveValues(Series series)
+		=>
+		[
+			.. series.Points
+				.Where(p => p.YValue is not null)
+				.Select(p => (Point: p, Value: Math.Abs(p.YValue!.Value)))
+				.Where(p => p.Value > 0)
+		];
+
+	/// <summary>
+	/// Splits the values into those keeping a slice of their own and the total of those combined
+	/// into one.
+	/// </summary>
+	/// <remarks>
+	/// Slices below the threshold are combined, as the Microsoft chart control does when
+	/// CollectedThreshold is set with CollectedThresholdUsePercent. One slice below the threshold
+	/// is left where it is: replacing a single slice with a combined slice of the same size hides
+	/// its identity and gains nothing.
+	/// </remarks>
+	private static (List<(ChartPoint Point, double Value)> Kept, double CollectedValue) Partition(
+		List<(ChartPoint Point, double Value)> values,
+		double total,
+		double thresholdPercent)
+	{
 		var kept = new List<(ChartPoint Point, double Value)>();
 		var collectedValue = 0d;
 		var collectedCount = 0;
 
 		foreach (var entry in values)
 		{
-			if (threshold > 0 && entry.Value / total * 100 < threshold)
+			if (thresholdPercent > 0 && entry.Value / total * 100 < thresholdPercent)
 			{
 				collectedValue += entry.Value;
 				collectedCount++;
@@ -93,52 +143,25 @@ internal static class PieSliceBuilder
 			}
 		}
 
-		// One slice below the threshold is left where it is: replacing a single slice with a
-		// combined slice of the same size hides its identity and gains nothing.
-		if (collectedCount == 1)
-		{
-			kept = values;
-			collectedValue = 0;
-		}
+		return collectedCount == 1 ? (values, 0) : (kept, collectedValue);
+	}
 
-		var slices = new List<PieSlice>();
-		var angle = series.PieStartAngleDegrees;
-		var paletteIndex = 0;
+	/// <summary>
+	/// The single slice standing for everything below the collected threshold.
+	/// </summary>
+	private static PieSlice CollectedSlice(Series series, double collectedValue, double total, double startAngle)
+	{
+		var percentage = collectedValue / total * 100;
+		var label = series.PieCollectedLabel is { Length: > 0 } ? series.PieCollectedLabel : "Other";
 
-		foreach (var entry in kept)
-		{
-			var percentage = entry.Value / total * 100;
-			var sweep = percentage / 100 * 360;
-			var color = entry.Point.Color ?? FallbackPalette[paletteIndex++ % FallbackPalette.Length];
-
-			slices.Add(new PieSlice(
-				Label: LabelFor(series, entry.Point, entry.Value, percentage, total),
-				LegendText: LegendTextFor(entry.Point, entry.Value),
-				Value: entry.Value,
-				Percentage: percentage,
-				Color: color,
-				StartAngleDegrees: angle,
-				SweepAngleDegrees: sweep));
-
-			angle += sweep;
-		}
-
-		if (collectedValue > 0)
-		{
-			var percentage = collectedValue / total * 100;
-			var label = series.PieCollectedLabel is { Length: > 0 } ? series.PieCollectedLabel : "Other";
-
-			slices.Add(new PieSlice(
-				Label: label,
-				LegendText: label,
-				Value: collectedValue,
-				Percentage: percentage,
-				Color: series.PieCollectedColor ?? Color.Gray,
-				StartAngleDegrees: angle,
-				SweepAngleDegrees: percentage / 100 * 360));
-		}
-
-		return slices;
+		return new PieSlice(
+			Label: label,
+			LegendText: label,
+			Value: collectedValue,
+			Percentage: percentage,
+			Color: series.PieCollectedColor ?? Color.Gray,
+			StartAngleDegrees: startAngle,
+			SweepAngleDegrees: percentage / 100 * 360);
 	}
 
 	private static string LabelFor(Series series, ChartPoint point, double value, double percentage, double total)

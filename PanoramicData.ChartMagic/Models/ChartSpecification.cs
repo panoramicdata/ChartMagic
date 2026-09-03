@@ -154,17 +154,6 @@ public class ChartSpecification
 	public int PointGapDepth3dPercent { get; set; }
 
 	/// <summary>
-	/// Builds a <see cref="Chart"/> from this specification, wired up and sized ready to
-	/// render.
-	/// </summary>
-	/// <remarks>
-	/// Issue #29: this was previously internal to the test project, so consumers had to
-	/// assemble the object model by hand with no reference to follow. Two of the assignments
-	/// below are load-bearing and impossible to guess - the root background area must be
-	/// sized, and each series must take its height from the inner plot. Omitting either
-	/// yields a blank chart with no error, which is exactly what happened downstream.
-	/// </remarks>
-	/// <summary>
 	/// The doughnut hole radius as a number. It is declared as an object because the
 	/// corresponding Microsoft chart custom property is a string, and callers pass whichever
 	/// of the two they happen to hold.
@@ -189,12 +178,41 @@ public class ChartSpecification
 			? style
 			: Models.PieLabelStyle.Inside;
 
+	/// <summary>
+	/// Builds a <see cref="Chart"/> from this specification, wired up and sized ready to
+	/// render.
+	/// </summary>
+	/// <remarks>
+	/// Issue #29: this was previously internal to the test project, so consumers had to
+	/// assemble the object model by hand with no reference to follow. Two of the assignments
+	/// below are load-bearing and impossible to guess - the root background area must be
+	/// sized, and each series must take its height from the inner plot. Omitting either
+	/// yields a blank chart with no error, which is exactly what happened downstream.
+	/// </remarks>
 	public Chart ToChart()
 	{
 		var chart = new Chart();
 
-		// ChartBackgroundArea
-		var chartBackgroundArea = new ChartBackgroundArea(chart, "Chart Background")
+		var chartBackgroundArea = BuildChartBackgroundArea(chart);
+		chart.ChartBackgroundArea = chartBackgroundArea;
+		chart.Legends.Add(BuildLegend(chart));
+
+		ConfigureChartArea(chart);
+		ConfigureInnerPlot(chart);
+		ConfigureXAxis(chart);
+		ConfigureYAxis(chart);
+		AddSeries(chart);
+		AddAnnotations(chartBackgroundArea, chart);
+
+		return chart;
+	}
+
+	/// <summary>
+	/// The root background area. It has to be sized explicitly: every other element is laid out
+	/// relative to it, so leaving it at zero renders a blank chart with no error.
+	/// </summary>
+	private ChartBackgroundArea BuildChartBackgroundArea(Chart chart)
+		=> new(chart, "Chart Background")
 		{
 			FillColor = ChartBackgroundColor,
 			WidthPercent = 100,
@@ -204,10 +222,9 @@ public class ChartSpecification
 			StrokeStyle = ChartBorderLineDashStyle,
 			FontSize = 20
 		};
-		chart.ChartBackgroundArea = chartBackgroundArea;
 
-		// Legend
-		var legend = new Legend(chart, "Legend")
+	private Legend BuildLegend(Chart chart)
+		=> new(chart, "Legend")
 		{
 			XPositionPercent = LegendXPositionPercent,
 			YPositionPercent = LegendYPositionPercent,
@@ -223,9 +240,9 @@ public class ChartSpecification
 			Style = LegendStyle,
 			FontColor = LegendFontColor,
 		};
-		chart.Legends.Add(legend);
 
-		// ChartArea
+	private void ConfigureChartArea(Chart chart)
+	{
 		chart.ChartArea.XPositionPercent = ChartAreaXPositionPercent;
 		chart.ChartArea.YPositionPercent = ChartAreaYPositionPercent;
 		chart.ChartArea.XRadiusPixels = ChartAreaXRadiusPixels;
@@ -236,8 +253,10 @@ public class ChartSpecification
 		chart.ChartArea.StrokeColor = ChartAreaBorderColor;
 		chart.ChartArea.StrokeWidth = ChartAreaBorderWidth;
 		chart.ChartArea.StrokeStyle = ChartAreaBorderLineDashStyle;
+	}
 
-		// ChartArea.InnerPlot
+	private void ConfigureInnerPlot(Chart chart)
+	{
 		chart.ChartArea.InnerPlot.XPositionPercent = InnerPlotXPositionPercent;
 		chart.ChartArea.InnerPlot.YPositionPercent = InnerPlotYPositionPercent;
 		chart.ChartArea.InnerPlot.WidthPercent = InnerPlotWidthPercent;
@@ -250,97 +269,121 @@ public class ChartSpecification
 		chart.ChartArea.InnerPlot.StrokeWidth = InnerPlotBorderWidth;
 		chart.ChartArea.InnerPlot.StrokeStyle = InnerPlotBorderLineDashStyle;
 		chart.ChartArea.ColumnBandFillFraction = ColumnBandFillFraction;
+	}
 
-		// XAxis
-		//
-		// Issue #31: the geometry below was wired up, but none of the settings that decide what
-		// the axis actually says were - not the title, the label angle, the gridlines, the
-		// interval, the label format nor the logarithmic flag. A specification could set every
-		// one of them and reach a renderer that had never been told. Fixing the renderer alone
-		// would still have drawn nothing.
-		chart.ChartArea.XAxis.XPositionPercent = InnerPlotXPositionPercent;
-		chart.ChartArea.XAxis.YPositionPercent = 0;
-		chart.ChartArea.XAxis.WidthPercent = InnerPlotWidthPercent;
-		chart.ChartArea.XAxis.HeightPercent = InnerPlotYPositionPercent;
-		chart.ChartArea.XAxis.FillColor = XAxisBackgroundColor;
-		chart.ChartArea.XAxis.FontSize = XAxisFontSize;
-		chart.ChartArea.XAxis.FontColor = AxisLabelColor;
-		chart.ChartArea.XAxis.Title = XAxisTitle;
-		chart.ChartArea.XAxis.LabelAngle = XAxisLabelAngle;
-		chart.ChartArea.XAxis.LabelFormat = XAxisLabelFormat;
-		chart.ChartArea.XAxis.LabelAutoFitStyle = XAxisLabelAutoFitStyle;
-		chart.ChartArea.XAxis.IsAutoFit = XAxisIsAutoFit;
-		chart.ChartArea.XAxis.Interval = XAxisInterval;
-		chart.ChartArea.XAxis.IntervalType = XAxisIntervalType;
-		chart.ChartArea.XAxis.XAxisIntervalAutoMode = XAxisIntervalAutoMode;
-		chart.ChartArea.XAxis.IsLogarithmic = XAxisIsLogarithmic;
-		chart.ChartArea.XAxis.MajorGridEnabled = XAxisMajorGridEnabled;
-		chart.ChartArea.XAxis.MajorGridInterval = XAxisMajorGridInterval;
-		chart.ChartArea.XAxis.MajorGridIntervalType = XAxisMajorGridIntervalType;
-		chart.ChartArea.XAxis.MinorGridEnabled = XAxisMinorGridEnabled;
-		chart.ChartArea.XAxis.MinorGridInterval = XAxisMinorGridInterval;
-		chart.ChartArea.XAxis.MinorGridIntervalType = XAxisMinorGridIntervalType;
-		chart.ChartArea.XAxis.LineColor = XAxisLineColor;
-		chart.ChartArea.XAxis.MajorGridColor = XAxisMajorGridColor;
-		chart.ChartArea.XAxis.MinorGridColor = XAxisMinorGridColor;
+	/// <summary>
+	/// The category axis: where the strip sits, and everything that decides what it says.
+	/// </summary>
+	/// <remarks>
+	/// Issue #31: the geometry below was wired up, but none of the settings that decide what
+	/// the axis actually says were - not the title, the label angle, the gridlines, the
+	/// interval, the label format nor the logarithmic flag. A specification could set every
+	/// one of them and reach a renderer that had never been told. Fixing the renderer alone
+	/// would still have drawn nothing.
+	/// </remarks>
+	private void ConfigureXAxis(Chart chart)
+	{
+		var xAxis = chart.ChartArea.XAxis;
+		xAxis.XPositionPercent = InnerPlotXPositionPercent;
+		xAxis.YPositionPercent = 0;
+		xAxis.WidthPercent = InnerPlotWidthPercent;
+		xAxis.HeightPercent = InnerPlotYPositionPercent;
+		xAxis.FillColor = XAxisBackgroundColor;
+		xAxis.FontSize = XAxisFontSize;
+		xAxis.FontColor = AxisLabelColor;
+		xAxis.Title = XAxisTitle;
+		xAxis.LabelAngle = XAxisLabelAngle;
+		xAxis.LabelFormat = XAxisLabelFormat;
+		xAxis.LabelAutoFitStyle = XAxisLabelAutoFitStyle;
+		xAxis.IsAutoFit = XAxisIsAutoFit;
+		xAxis.Interval = XAxisInterval;
+		xAxis.IntervalType = XAxisIntervalType;
+		xAxis.XAxisIntervalAutoMode = XAxisIntervalAutoMode;
+		xAxis.IsLogarithmic = XAxisIsLogarithmic;
+		xAxis.MajorGridEnabled = XAxisMajorGridEnabled;
+		xAxis.MajorGridInterval = XAxisMajorGridInterval;
+		xAxis.MajorGridIntervalType = XAxisMajorGridIntervalType;
+		xAxis.MinorGridEnabled = XAxisMinorGridEnabled;
+		xAxis.MinorGridInterval = XAxisMinorGridInterval;
+		xAxis.MinorGridIntervalType = XAxisMinorGridIntervalType;
+		xAxis.LineColor = XAxisLineColor;
+		xAxis.MajorGridColor = XAxisMajorGridColor;
+		xAxis.MinorGridColor = XAxisMinorGridColor;
+	}
 
-		// YAxis
-		chart.ChartArea.YAxis.XPositionPercent = 0;
-		chart.ChartArea.YAxis.YPositionPercent = InnerPlotYPositionPercent;
-		chart.ChartArea.YAxis.WidthPercent = YAxisWidthPercent ?? InnerPlotXPositionPercent;
-		chart.ChartArea.YAxis.HeightPercent = InnerPlotHeightPercent;
-		chart.ChartArea.YAxis.FillColor = YAxisBackgroundColor;
-		chart.ChartArea.YAxis.FontSize = YAxisFontSize;
-		chart.ChartArea.YAxis.FontColor = AxisLabelColor;
-		chart.ChartArea.YAxis.Title = YAxisTitle;
-		chart.ChartArea.YAxis.LabelAngle = YAxisLabelAngle;
-		chart.ChartArea.YAxis.LabelFormat = YAxisLabelFormat;
-		chart.ChartArea.YAxis.LabelAutoFitStyle = YAxisLabelAutoFitStyle;
-		chart.ChartArea.YAxis.IsAutoFit = YAxisIsAutoFit;
-		chart.ChartArea.YAxis.Min = YAxisMinimum;
-		chart.ChartArea.YAxis.Max = YAxisMaximum;
-		chart.ChartArea.YAxis.Interval = YAxisInterval;
-		chart.ChartArea.YAxis.IntervalType = YAxisIntervalType;
-		chart.ChartArea.YAxis.XAxisIntervalAutoMode = YAxisIntervalAutoMode;
-		chart.ChartArea.YAxis.IsLogarithmic = YAxisIsLogarithmic;
-		chart.ChartArea.YAxis.MajorGridEnabled = YAxisMajorGridEnabled;
-		chart.ChartArea.YAxis.MajorGridInterval = YAxisMajorGridInterval;
-		chart.ChartArea.YAxis.MajorGridIntervalType = YAxisMajorGridIntervalType;
-		chart.ChartArea.YAxis.MinorGridEnabled = YAxisMinorGridEnabled;
-		chart.ChartArea.YAxis.MinorGridInterval = YAxisMinorGridInterval;
-		chart.ChartArea.YAxis.MinorGridIntervalType = YAxisMinorGridIntervalType;
-		chart.ChartArea.YAxis.LineColor = YAxisLineColor;
-		chart.ChartArea.YAxis.MajorGridColor = YAxisMajorGridColor;
-		chart.ChartArea.YAxis.MinorGridColor = YAxisMinorGridColor;
-		chart.ChartArea.YAxis.UseShortLabels = UseYAxisShortLabels;
+	/// <summary>
+	/// The value axis: where the strip sits, and everything that decides what it says.
+	/// </summary>
+	private void ConfigureYAxis(Chart chart)
+	{
+		var yAxis = chart.ChartArea.YAxis;
+		yAxis.XPositionPercent = 0;
+		yAxis.YPositionPercent = InnerPlotYPositionPercent;
+		yAxis.WidthPercent = YAxisWidthPercent ?? InnerPlotXPositionPercent;
+		yAxis.HeightPercent = InnerPlotHeightPercent;
+		yAxis.FillColor = YAxisBackgroundColor;
+		yAxis.FontSize = YAxisFontSize;
+		yAxis.FontColor = AxisLabelColor;
+		yAxis.Title = YAxisTitle;
+		yAxis.LabelAngle = YAxisLabelAngle;
+		yAxis.LabelFormat = YAxisLabelFormat;
+		yAxis.LabelAutoFitStyle = YAxisLabelAutoFitStyle;
+		yAxis.IsAutoFit = YAxisIsAutoFit;
+		yAxis.Min = YAxisMinimum;
+		yAxis.Max = YAxisMaximum;
+		yAxis.Interval = YAxisInterval;
+		yAxis.IntervalType = YAxisIntervalType;
+		yAxis.XAxisIntervalAutoMode = YAxisIntervalAutoMode;
+		yAxis.IsLogarithmic = YAxisIsLogarithmic;
+		yAxis.MajorGridEnabled = YAxisMajorGridEnabled;
+		yAxis.MajorGridInterval = YAxisMajorGridInterval;
+		yAxis.MajorGridIntervalType = YAxisMajorGridIntervalType;
+		yAxis.MinorGridEnabled = YAxisMinorGridEnabled;
+		yAxis.MinorGridInterval = YAxisMinorGridInterval;
+		yAxis.MinorGridIntervalType = YAxisMinorGridIntervalType;
+		yAxis.LineColor = YAxisLineColor;
+		yAxis.MajorGridColor = YAxisMajorGridColor;
+		yAxis.MinorGridColor = YAxisMinorGridColor;
+		yAxis.UseShortLabels = UseYAxisShortLabels;
+	}
 
-		// Series
+	private void AddSeries(Chart chart)
+	{
 		var seriesIndex = 0;
 		foreach (var seriesSpec in SeriesList)
 		{
-			var series = new Series(chart.ChartArea, $"Series {++seriesIndex}")
-			{
-				ChartType = seriesSpec.ChartType,
-				FillColor = seriesSpec.FillColor,
-				FontSize = seriesSpec.FontSize,
-				HeightPercent = chart.ChartArea.InnerPlot.HeightPercent,
-				IsXValueIndexed = seriesSpec.IsXValueIndexed,
-				LabelText = seriesSpec.LabelText,
-				LegendText = seriesSpec.LegendText,
+			chart.Series.Add(BuildSeries(chart, seriesSpec, $"Series {++seriesIndex}"));
+		}
+	}
 
-				MarkerStyle = seriesSpec.MarkerStyle,
-				MarkerStrokeColor = seriesSpec.MarkerStrokeColor,
-				MarkerFillColor = seriesSpec.MarkerFillColor,
-				MarkerStrokeWidth = seriesSpec.MarkerStrokeWidth,
-				MarkerSize = seriesSpec.MarkerSize,
+	/// <summary>
+	/// One series. Its height comes from the inner plot: left at its own default it renders
+	/// nothing, with no error to say why.
+	/// </summary>
+	private Series BuildSeries(Chart chart, SeriesSpecification seriesSpec, string name)
+		=> new(chart.ChartArea, name)
+		{
+			ChartType = seriesSpec.ChartType,
+			FillColor = seriesSpec.FillColor,
+			FontSize = seriesSpec.FontSize,
+			HeightPercent = chart.ChartArea.InnerPlot.HeightPercent,
+			IsXValueIndexed = seriesSpec.IsXValueIndexed,
+			LabelText = seriesSpec.LabelText,
+			LegendText = seriesSpec.LegendText,
 
-				Points = seriesSpec.Points,
+			MarkerStyle = seriesSpec.MarkerStyle,
+			MarkerStrokeColor = seriesSpec.MarkerStrokeColor,
+			MarkerFillColor = seriesSpec.MarkerFillColor,
+			MarkerStrokeWidth = seriesSpec.MarkerStrokeWidth,
+			MarkerSize = seriesSpec.MarkerSize,
 
-				StrokeColor = seriesSpec.StrokeColor,
-				StrokeLineCapStyle = seriesSpec.StrokeLineCapStyle,
-				StrokeLineJoinStyle = seriesSpec.StrokeLineJoinStyle,
-				StrokeStyle = seriesSpec.StrokeStyle,
-				StrokeWidth = seriesSpec.StrokeWidth,
+			Points = seriesSpec.Points,
+
+			StrokeColor = seriesSpec.StrokeColor,
+			StrokeLineCapStyle = seriesSpec.StrokeLineCapStyle,
+			StrokeLineJoinStyle = seriesSpec.StrokeLineJoinStyle,
+			StrokeStyle = seriesSpec.StrokeStyle,
+			StrokeWidth = seriesSpec.StrokeWidth,
 
 			// Pie settings come from the chart unless the series overrides them: the Microsoft
 			// chart control holds them per series, but a specification sets them once.
@@ -351,37 +394,40 @@ public class ChartSpecification
 			PieCollectedThresholdPercent = seriesSpec.PieCollectedThresholdPercent ?? PieCollectedThresholdPercent,
 			PieCollectedColor = seriesSpec.PieCollectedColor ?? PieCollectedColor,
 			PieCollectedLabel = seriesSpec.PieCollectedLabel ?? PieCollectedLabel,
-			};
-			chart.Series.Add(series);
-		}
+		};
 
-		// Annotations
+	private void AddAnnotations(ChartBackgroundArea chartBackgroundArea, Chart chart)
+	{
 		var annotationIndex = 0;
 		foreach (var annotationSpec in AnnotationList)
 		{
-			var annotation = new Annotation(chartBackgroundArea, $"Annotation {++annotationIndex}")
-			{
-				// Group
-				StrokeColor = annotationSpec.StrokeColor,
-				StrokeWidth = annotationSpec.StrokeWidth,
-				StrokeStyle = annotationSpec.StrokeStyle,
-				XPositionPercent = annotationSpec.XPositionPercent,
-				YPositionPercent = annotationSpec.YPositionPercent,
-				XRadiusPixels = annotationSpec.XRadiusPixels,
-				YRadiusPixels = annotationSpec.YRadiusPixels,
-				FillColor = annotationSpec.FillColor,
-				FontSize = annotationSpec.FontSize,
-				FontWeight = annotationSpec.FontWeight,
-				FontFamily = annotationSpec.FontFamily,
-
-				// Annotation-specific
-				Text = annotationSpec.Text,
-				HorizontalAlignment = annotationSpec.HorizontalAlignment,
-				VerticalAlignment = annotationSpec.VerticalAlignment,
-			};
-			chart.Annotations.Add(annotation);
+			chart.Annotations.Add(
+				BuildAnnotation(chartBackgroundArea, annotationSpec, $"Annotation {++annotationIndex}"));
 		}
-
-		return chart;
 	}
+
+	private static Annotation BuildAnnotation(
+		ChartBackgroundArea chartBackgroundArea,
+		AnnotationSpec annotationSpec,
+		string name)
+		=> new(chartBackgroundArea, name)
+		{
+			// Group
+			StrokeColor = annotationSpec.StrokeColor,
+			StrokeWidth = annotationSpec.StrokeWidth,
+			StrokeStyle = annotationSpec.StrokeStyle,
+			XPositionPercent = annotationSpec.XPositionPercent,
+			YPositionPercent = annotationSpec.YPositionPercent,
+			XRadiusPixels = annotationSpec.XRadiusPixels,
+			YRadiusPixels = annotationSpec.YRadiusPixels,
+			FillColor = annotationSpec.FillColor,
+			FontSize = annotationSpec.FontSize,
+			FontWeight = annotationSpec.FontWeight,
+			FontFamily = annotationSpec.FontFamily,
+
+			// Annotation-specific
+			Text = annotationSpec.Text,
+			HorizontalAlignment = annotationSpec.HorizontalAlignment,
+			VerticalAlignment = annotationSpec.VerticalAlignment,
+		};
 }

@@ -82,24 +82,51 @@ internal sealed class PlotGeometry
 		Chart chart,
 		AxisHandlerResult axisHandlerResult)
 	{
-		var initialStart = chart.ChartArea.YAxis.Min ?? axisHandlerResult.MinY ?? 0;
+		var yAxis = chart.ChartArea.YAxis;
 		if (IsPercentStackedPlot)
 		{
-			var percentStart = chart.ChartArea.YAxis.Min ?? 0;
-			return (20, percentStart, (chart.ChartArea.YAxis.Max ?? 100) - percentStart);
+			return PercentStackedValueAxis(yAxis);
 		}
 
-		if (YIsLogarithmic)
-		{
-			var end = chart.ChartArea.YAxis.Max ?? axisHandlerResult.MaxY ?? 0;
-			return (null, initialStart, end - initialStart);
-		}
+		return YIsLogarithmic
+			? LogarithmicValueAxis(yAxis, axisHandlerResult)
+			: GeneratedValueAxis(yAxis, axisHandlerResult);
+	}
 
+	/// <summary>
+	/// The value axis of a hundred per cent stacked plot, which is a percentage scale in fifths.
+	/// </summary>
+	private static (double? Interval, double Start, double Range) PercentStackedValueAxis(AxisArea yAxis)
+	{
+		var start = yAxis.Min ?? 0;
+		return (20, start, (yAxis.Max ?? 100) - start);
+	}
+
+	/// <summary>
+	/// The linear span of a logarithmic value axis, which is the data range as it stands: the
+	/// decades themselves come from the logarithmic mapping rather than from an interval.
+	/// </summary>
+	private static (double? Interval, double Start, double Range) LogarithmicValueAxis(
+		AxisArea yAxis,
+		AxisHandlerResult axisHandlerResult)
+	{
+		var start = yAxis.Min ?? axisHandlerResult.MinY ?? 0;
+		return (null, start, (yAxis.Max ?? axisHandlerResult.MaxY ?? 0) - start);
+	}
+
+	/// <summary>
+	/// The value axis with bounds chosen to land on readable ticks, except at whichever end the
+	/// chart pins for itself.
+	/// </summary>
+	private static (double? Interval, double Start, double Range) GeneratedValueAxis(
+		AxisArea yAxis,
+		AxisHandlerResult axisHandlerResult)
+	{
 		var (step, generatedStart, generatedEnd) = TickGenerator.LinearBounds(
 			axisHandlerResult.MinY ?? 0,
 			axisHandlerResult.MaxY ?? 0);
-		var start = chart.ChartArea.YAxis.Min ?? generatedStart;
-		return (step, start, (chart.ChartArea.YAxis.Max ?? generatedEnd) - start);
+		var start = yAxis.Min ?? generatedStart;
+		return (step, start, (yAxis.Max ?? generatedEnd) - start);
 	}
 
 	private static (double Minimum, double Maximum, double Start, double Range) GetLogarithmicAxis(Chart chart)

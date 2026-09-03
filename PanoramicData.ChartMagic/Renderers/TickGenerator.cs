@@ -19,22 +19,48 @@ internal static class TickGenerator
 	/// </summary>
 	internal static IReadOnlyList<double> Linear(double min, double max, double? interval, int targetCount)
 	{
-		if (double.IsNaN(min) || double.IsNaN(max) || double.IsInfinity(min) || double.IsInfinity(max) || max <= min)
+		if (!IsPlottableRange(min, max))
 		{
 			return [min];
 		}
 
+		var ticks = StepsAcross(min, max, UsableStep(min, max, interval, targetCount));
+		return ticks.Count == 0 ? [min] : ticks;
+	}
+
+	/// <summary>
+	/// Whether a range can be divided into ticks at all.
+	/// </summary>
+	private static bool IsPlottableRange(double min, double max)
+		=> !double.IsNaN(min)
+			&& !double.IsNaN(max)
+			&& !double.IsInfinity(min)
+			&& !double.IsInfinity(max)
+			&& max > min;
+
+	/// <summary>
+	/// The interval the caller asked for, or a readable one where they gave none.
+	/// </summary>
+	/// <remarks>
+	/// A caller-supplied interval is also refused where it is so small relative to the range that
+	/// it would generate unbounded ticks.
+	/// </remarks>
+	private static double UsableStep(double min, double max, double? interval, int targetCount)
+	{
 		var step = interval is > 0
 			? interval.Value
 			: NiceStep(max - min, targetCount);
 
-		// Guard against a step so small relative to the range that we would generate
-		// unbounded ticks.
-		if (step <= 0 || (max - min) / step > MaximumTicks)
-		{
-			step = NiceStep(max - min, targetCount);
-		}
+		return step > 0 && (max - min) / step <= MaximumTicks
+			? step
+			: NiceStep(max - min, targetCount);
+	}
 
+	/// <summary>
+	/// The multiples of the step that fall within the range, aligned to a multiple of it.
+	/// </summary>
+	private static List<double> StepsAcross(double min, double max, double step)
+	{
 		var decimals = DecimalsFor(step);
 		var ticks = new List<double>();
 
@@ -50,7 +76,7 @@ internal static class TickGenerator
 			}
 		}
 
-		return ticks.Count == 0 ? [min] : ticks;
+		return ticks;
 	}
 
 	/// <summary>
@@ -65,29 +91,38 @@ internal static class TickGenerator
 		var firstExponent = (int)Math.Floor(Math.Log10(low));
 		var lastExponent = (int)Math.Ceiling(Math.Log10(high));
 
+		// Over more than a handful of decades the intermediate steps are too crowded to read.
+		var withMinor = includeMinor && lastExponent - firstExponent <= 4;
+
 		var ticks = new List<double>();
 		for (var exponent = firstExponent; exponent <= lastExponent; exponent++)
 		{
 			var decade = Math.Pow(10, exponent);
 			ticks.Add(decade);
 
-			if (!includeMinor || lastExponent - firstExponent > 4)
+			if (withMinor)
 			{
-				continue;
-			}
-
-			for (var multiplier = 2; multiplier <= 9; multiplier++)
-			{
-				var value = decade * multiplier;
-				if (value < high)
-				{
-					ticks.Add(value);
-				}
+				ticks.AddRange(DecadeSubdivisions(decade, high));
 			}
 		}
 
 		ticks.Sort();
 		return ticks;
+	}
+
+	/// <summary>
+	/// The 2..9 steps within one decade that fall below the top of the range.
+	/// </summary>
+	private static IEnumerable<double> DecadeSubdivisions(double decade, double high)
+	{
+		for (var multiplier = 2; multiplier <= 9; multiplier++)
+		{
+			var value = decade * multiplier;
+			if (value < high)
+			{
+				yield return value;
+			}
+		}
 	}
 
 	/// <summary>

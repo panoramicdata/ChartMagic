@@ -1,4 +1,4 @@
-using PanoramicData.ChartMagic.Renderers;
+﻿using PanoramicData.ChartMagic.Renderers;
 using SkiaSharp;
 using System.Reflection;
 
@@ -71,8 +71,8 @@ public class TextRenderingTests : RenderTest
 	[Fact]
 	public void AddingAnAxisTitle_ChangesThePixels()
 	{
-		var withoutTitle = RenderToPngBytes(titleText: null);
-		var withTitle = RenderToPngBytes(titleText: "Rendered title");
+		var withoutTitle = RenderWithTitle(titleText: null);
+		var withTitle = RenderWithTitle(titleText: "Rendered title");
 
 		withTitle.Should().NotEqual(
 			withoutTitle,
@@ -90,10 +90,10 @@ public class TextRenderingTests : RenderTest
 	[Fact]
 	public void ALongerAxisTitle_DiffersMoreThanAShorterOne()
 	{
-		var baseline = RenderToPngBytes(titleText: null);
+		var baseline = RenderWithTitle(titleText: null);
 
-		var shortDifference = DifferingPixels(baseline, RenderToPngBytes(titleText: "I"));
-		var longDifference = DifferingPixels(baseline, RenderToPngBytes(titleText: "MMMMMMMMMMMMMMMMMMMM"));
+		var shortDifference = DifferingPixels(baseline, RenderWithTitle(titleText: "I"));
+		var longDifference = DifferingPixels(baseline, RenderWithTitle(titleText: "MMMMMMMMMMMMMMMMMMMM"));
 
 		shortDifference.Should().BeGreaterThan(0, "even one character must draw something");
 		longDifference.Should().BeGreaterThan(
@@ -143,23 +143,10 @@ public class TextRenderingTests : RenderTest
 		return specification;
 	}
 
-	private byte[] RenderToPngBytes(string? titleText)
-	{
-		var fileInfo = GetTempFileName(ChartImageFormat.Png);
-		try
-		{
-			SaveFile(WithAxisTitle(titleText), fileInfo);
-			return File.ReadAllBytes(fileInfo.FullName);
-		}
-		finally
-		{
-			fileInfo.Refresh();
-			if (fileInfo.Exists)
-			{
-				fileInfo.Delete();
-			}
-		}
-	}
+	/// <summary>
+	/// The PNG of the fixture chart, captioned or not.
+	/// </summary>
+	private byte[] RenderWithTitle(string? titleText) => RenderToPngBytes(WithAxisTitle(titleText));
 
 	private static int DifferingPixels(byte[] firstPng, byte[] secondPng)
 	{
