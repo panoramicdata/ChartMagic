@@ -1,0 +1,691 @@
+/*
+ * Colours live in tokens so that the dark palette is a swap rather than a second set of
+ * rules. The three states are: an explicit choice on the root element, and the default
+ * "system" setting, where only prefers-color-scheme separates light from dark.
+ */
+:root {
+	--page: #fff;
+	--ink: #1f2328;
+	--ink-muted: #3d444d;
+	--rule: #d1d9e0;
+	--panel: #f6f8fa;
+	--stripe: rgba(15, 23, 42, 0.05);
+	--working-bg: #dafbe1;
+	--working-fg: #1a7f37;
+	--partial-bg: #fff8c5;
+	--partial-fg: #7d4e00;
+	--missing-bg: #ffebe9;
+	--missing-fg: #a40e26;
+	--ring-track: #e0e0e0;
+	--ring-fill: #1b6ec2;
+	--bs-body-bg: var(--page);
+	--bs-body-color: var(--ink);
+	--bs-border-color: var(--rule);
+	--bs-border-color-translucent: var(--rule);
+	--bs-tertiary-bg: var(--panel);
+	--bs-secondary-color: var(--ink-muted);
+	--bs-primary: #1b6ec2;
+	--bs-primary-rgb: 27, 110, 194;
+	--bs-primary-bg-subtle: #e7f1ff;
+	--bs-primary-text-emphasis: #0a3d75;
+	--bs-danger: #a40e26;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--page: #0d1117;
+		--ink: #e6e8eb;
+		--ink-muted: #9198a1;
+		--rule: #3d444d;
+		--panel: #161b22;
+		--stripe: rgba(255, 255, 255, 0.06);
+		--working-bg: #1b3a24;
+		--working-fg: #6fd48a;
+		--partial-bg: #3d2f04;
+		--partial-fg: #e0c369;
+		--missing-bg: #46181c;
+		--missing-fg: #ff9492;
+		--ring-track: #30363d;
+		--ring-fill: #4493f8;
+		--bs-primary: #4493f8;
+		--bs-primary-rgb: 68, 147, 248;
+		--bs-primary-bg-subtle: #10263f;
+		--bs-primary-text-emphasis: #9ecbff;
+		--bs-danger: #ff9492;
+	}
+}
+
+:root[data-theme="dark"] {
+	--page: #0d1117;
+	--ink: #e6e8eb;
+	--ink-muted: #9198a1;
+	--rule: #3d444d;
+	--panel: #161b22;
+	--stripe: rgba(255, 255, 255, 0.06);
+	--working-bg: #1b3a24;
+	--working-fg: #6fd48a;
+	--partial-bg: #3d2f04;
+	--partial-fg: #e0c369;
+	--missing-bg: #46181c;
+	--missing-fg: #ff9492;
+	--ring-track: #30363d;
+	--ring-fill: #4493f8;
+	--bs-primary: #4493f8;
+	--bs-primary-rgb: 68, 147, 248;
+	--bs-primary-bg-subtle: #10263f;
+	--bs-primary-text-emphasis: #9ecbff;
+	--bs-danger: #ff9492;
+}
+
+/* Show only the render that matches the reader colour scheme. */
+.dark-only {
+	display: none;
+}
+
+.light-only {
+	display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) .dark-only {
+		display: block;
+	}
+
+	:root:not([data-theme="light"]) .light-only {
+		display: none;
+	}
+}
+
+:root[data-theme="dark"] .dark-only {
+	display: block;
+}
+
+:root[data-theme="dark"] .light-only {
+	display: none;
+}
+
+body {
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	margin: 0 auto;
+	padding: 2rem 1.5rem 4rem;
+
+	/* Full page width: the samples pair a chart with a table of properties, and both want room. */
+	max-width: none;
+	color: var(--ink);
+	background: var(--page);
+	line-height: 1.5;
+}
+
+h1 {
+	margin-bottom: 0.25rem;
+}
+
+.lead {
+	font-size: 1.05rem;
+	color: var(--ink-muted);
+}
+
+.status-key {
+	margin: 1.5rem 0 2rem;
+	padding: 0.75rem 1rem;
+	background: var(--panel);
+	border: 1px solid var(--rule);
+	border-radius: 6px;
+	font-size: 0.9rem;
+}
+
+.badge {
+	font-size: 0.72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	padding: 0.15rem 0.5rem;
+	border-radius: 999px;
+	white-space: nowrap;
+}
+
+.status-key .badge {
+	margin-left: 0.5rem;
+}
+
+.status-key .badge:first-child {
+	margin-left: 0;
+}
+
+.sample {
+	margin: 2.5rem 0;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--rule);
+}
+
+.sample h2 {
+	font-size: 1.15rem;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-bottom: 0.35rem;
+}
+
+.notes {
+	color: var(--ink-muted);
+	font-size: 0.92rem;
+	margin-top: 0;
+}
+
+.badge.working {
+	background: var(--working-bg);
+	color: var(--working-fg);
+}
+
+.badge.partial {
+	background: var(--partial-bg);
+	color: var(--partial-fg);
+}
+
+.badge.missing {
+	background: var(--missing-bg);
+	color: var(--missing-fg);
+}
+
+/*
+ * The chart is an inline SVG with its own intrinsic size; keep it inside the column.
+ *
+ * The stripes are the point: every chart is drawn on a translucent background, so if the
+ * stripes are visible through it the fill is genuinely translucent and its border is still
+ * solid. An opaque fill, or a border faded along with the fill, shows up immediately.
+ */
+.chart {
+	border: 1px solid var(--rule);
+	border-radius: 6px;
+	background: repeating-linear-gradient(
+		45deg,
+		var(--stripe) 0 8px,
+		transparent 8px 16px);
+	overflow-x: auto;
+	padding: 0.5rem;
+}
+
+/* Fill the column: the SVG carries a viewBox, so it scales rather than crops. */
+.chart svg {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+/*
+ * Styles the markup the Blazor template puts in index.html: the boot progress ring and the
+ * error banner.
+ *
+ * These rules were in the template's app.css. That file was removed as unused - which was
+ * wrong, because without "display: none" the error banner shows permanently, so a perfectly
+ * healthy page appears to have crashed. It cost a while to spot, having been mistaken for a
+ * real exception on the deployed site.
+ */
+.loading-progress {
+	position: relative;
+	display: block;
+	width: 8rem;
+	height: 8rem;
+	margin: 20vh auto 1rem;
+}
+
+.loading-progress circle {
+	fill: none;
+	stroke: var(--ring-track);
+	stroke-width: 0.6rem;
+	transform-origin: 50% 50%;
+	transform: rotate(-90deg);
+}
+
+.loading-progress circle:last-child {
+	stroke: var(--ring-fill);
+	stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8) 500%;
+	transition: stroke-dasharray 0.05s ease-in-out;
+}
+
+.loading-progress-text {
+	position: absolute;
+	text-align: center;
+	inset: calc(20vh + 3.25rem) 0 auto 0;
+	font-weight: 600;
+}
+
+.loading-progress-text::after {
+	content: var(--blazor-load-percentage-text, "Loading");
+}
+
+/* Hidden until Blazor unhides it on an actual unhandled exception. */
+#blazor-error-ui {
+	display: none;
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 1000;
+	padding: 0.7rem 1.25rem 0.7rem 1.25rem;
+	background: var(--missing-bg);
+	border-top: 1px solid var(--missing-fg);
+	color: var(--missing-fg);
+	box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#blazor-error-ui .dismiss {
+	cursor: pointer;
+	position: absolute;
+	right: 0.75rem;
+	top: 0.5rem;
+}
+
+/* Header, with the colour mode picker alongside the title. */
+.page-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.page-header h1 { margin-top: 0; }
+
+.mode-picker {
+	display: inline-flex;
+	border: 1px solid var(--rule);
+	border-radius: 6px;
+	overflow: hidden;
+	flex: 0 0 auto;
+}
+
+.mode-button {
+	appearance: none;
+	border: 0;
+	border-left: 1px solid var(--rule);
+	background: var(--page);
+	color: var(--ink-muted);
+	font: inherit;
+	font-size: 0.85rem;
+	padding: 0.35rem 0.8rem;
+	cursor: pointer;
+}
+
+.mode-button:first-child { border-left: 0; }
+
+.mode-button.active {
+	background: var(--panel);
+	color: var(--ink);
+	font-weight: 600;
+}
+
+/*
+ * Chart first, details beside it, and underneath once the column is too narrow to hold both.
+ * The chart keeps a floor of 26rem so it never squeezes down to a sliver; the details take
+ * whatever is left and wrap below when that would be less than 18rem.
+ */
+.sample-body {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.5rem;
+	align-items: flex-start;
+}
+
+.sample-chart {
+	flex: 3 1 30rem;
+	min-width: 0;
+}
+
+.sample-detail {
+	flex: 1 1 17rem;
+	min-width: 0;
+	font-size: 0.85rem;
+}
+
+.sample-detail h3 {
+	font-size: 0.9rem;
+	margin: 1rem 0 0.35rem;
+	color: var(--ink-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.sample-detail h3:first-child { margin-top: 0; }
+
+.series-name {
+	margin: 0.5rem 0 0.25rem;
+	font-weight: 600;
+}
+
+/* Wide tables scroll inside their own box rather than widening the page. */
+.detail-table {
+	border-collapse: collapse;
+	width: 100%;
+	margin-bottom: 0.5rem;
+	display: block;
+	overflow-x: auto;
+}
+
+.detail-table th,
+.detail-table td {
+	border: 1px solid var(--rule);
+	padding: 0.2rem 0.45rem;
+	text-align: left;
+	vertical-align: top;
+	white-space: nowrap;
+}
+
+.detail-table th {
+	background: var(--panel);
+	font-weight: 600;
+}
+
+.detail-table td { font-variant-numeric: tabular-nums; }
+
+/*
+ * The tab strip scrolls sideways rather than wrapping. The containers must be told not to
+ * shrink: with two dozen tabs in a flex row they otherwise compress until every title is
+ * clipped to an ellipsis, which defeats the point of naming them.
+ */
+.samples .pdtabset-tabs {
+	/* Wraps onto as many rows as it needs. Two dozen tabs in one scrolling row leaves most
+	   of them off screen with nothing to say so; wrapping shows every one at once. */
+	flex-wrap: wrap;
+	row-gap: 2px;
+	padding: 4px 8px 0;
+}
+
+.samples .pdtabset-tab-container {
+	flex: 0 0 auto;
+}
+
+.samples .pdtabset-tab {
+	font-size: 0.85rem;
+	padding: 8px 12px 6px;
+}
+
+.samples .pdtabset-tab-title {
+	overflow: visible;
+	text-overflow: clip;
+}
+
+.samples .pdtabset-content {
+	border: 1px solid var(--rule);
+	border-top: 0;
+	padding: 1.25rem;
+}
+
+.samples .sample {
+	margin: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+
+/* The library version, alongside the title rather than competing with it. */
+.version {
+	font-size: 0.55em;
+	font-weight: 500;
+	color: var(--ink-muted);
+	vertical-align: 0.35em;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The name column takes only what it needs; the value column takes the rest. */
+.detail-table th[scope="row"] {
+	width: 1%;
+	white-space: nowrap;
+}
+
+.detail-table td {
+	width: auto;
+	white-space: normal;
+}
+
+/* Section headings within the table, so the columns stay aligned across sections. */
+.detail-table tr.section th {
+	background: var(--rule);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-size: 0.78rem;
+	width: auto;
+}
+
+.detail-table {
+	table-layout: auto;
+}
+
+/* Editors in the properties table. */
+.editor-table input[type="text"],
+.editor-table input[type="number"],
+.editor-table select {
+	width: 100%;
+	box-sizing: border-box;
+	background: var(--page);
+	color: var(--ink);
+	border: 1px solid var(--rule);
+	border-radius: 3px;
+	font: inherit;
+	font-size: 0.8rem;
+	padding: 0.1rem 0.25rem;
+}
+
+.editor-table td {
+	padding: 0.1rem 0.25rem;
+}
+
+.read-only {
+	font-style: italic;
+	color: var(--ink-muted);
+}
+
+/* A property still at its default is dimmed, so what the sample sets stands out. */
+.editor-table tr.is-default th,
+.editor-table tr.is-default .read-only {
+	color: var(--ink-muted);
+	font-weight: 400;
+}
+
+.editor-table tr.is-default input,
+.editor-table tr.is-default select {
+	color: var(--ink-muted);
+}
+
+.reset-button {
+	appearance: none;
+	border: 1px solid var(--rule);
+	background: var(--panel);
+	color: var(--ink);
+	font: inherit;
+	font-size: 0.75rem;
+	padding: 0.15rem 0.6rem;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.edited {
+	font-size: 0.72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--partial-fg);
+}
+
+/* The properties table is long, so it scrolls within the panel rather than the page. */
+.sample-detail {
+	max-height: 80vh;
+	overflow-y: auto;
+}
+
+/* A value away from its default is marked, and can be put back on its own. */
+.editor-table tr.is-changed th {
+	box-shadow: inset 3px 0 0 var(--partial-fg);
+	color: var(--ink);
+}
+
+.editor-cell {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.editor-cell > :first-child {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.row-reset {
+	appearance: none;
+	flex: 0 0 auto;
+	border: 1px solid var(--rule);
+	background: var(--panel);
+	color: var(--ink-muted);
+	font-size: 0.9rem;
+	line-height: 1;
+	padding: 0.05rem 0.3rem;
+	border-radius: 3px;
+	cursor: pointer;
+}
+
+.row-reset:hover {
+	color: var(--ink);
+	border-color: var(--ink-muted);
+}
+
+/*
+ * PDColorPicker expects Bootstrap button classes, which the demo does not load. Enough of
+ * them are supplied here for the button to look like the other editors.
+ */
+.editor-table .btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	width: 100%;
+	box-sizing: border-box;
+	background: var(--page);
+	color: var(--ink);
+	border: 1px solid var(--rule);
+	border-radius: 3px;
+	font: inherit;
+	font-size: 0.8rem;
+	padding: 0.1rem 0.25rem;
+	cursor: pointer;
+}
+
+.editor-table .pd-color-picker-container {
+	position: relative;
+}
+
+.editor-table .pd-color-swatch {
+	position: relative;
+	display: inline-block;
+	width: 0.9rem;
+	height: 0.9rem;
+	border: 1px solid var(--rule);
+	border-radius: 2px;
+	overflow: hidden;
+}
+
+/* The checkerboard is what makes a transparent or partly transparent choice legible. */
+.editor-table .pd-color-swatch-checkerboard {
+	position: absolute;
+	inset: 0;
+	background-image:
+		linear-gradient(45deg, #999 25%, transparent 25%, transparent 75%, #999 75%),
+		linear-gradient(45deg, #999 25%, transparent 25%, transparent 75%, #999 75%);
+	background-size: 6px 6px;
+	background-position: 0 0, 3px 3px;
+	background-color: #fff;
+}
+
+.editor-table .pd-color-swatch-color {
+	position: absolute;
+	inset: 0;
+}
+
+.editor-table .pd-color-picker-popup {
+	position: absolute;
+	right: 0;
+	z-index: 20;
+	background: var(--panel);
+	border: 1px solid var(--rule);
+	border-radius: 4px;
+	padding: 0.5rem;
+}
+
+.row-reset:disabled {
+	opacity: 0.28;
+	cursor: default;
+}
+
+.row-reset:disabled:hover {
+	color: var(--ink-muted);
+	border-color: var(--rule);
+}
+
+/*
+	The optional comparison against a DocMagic server. Local development only, so these styles are
+	never exercised on the published site.
+*/
+.comparison-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	margin: 0 0 1rem;
+	padding: 0.5rem 0.75rem;
+	border: 1px dashed var(--rule);
+	border-radius: 4px;
+	font-size: 0.85rem;
+}
+
+.comparison-state {
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.comparison-state.on {
+	color: var(--bs-success, #2e7d32);
+}
+
+.comparison-state.off {
+	color: var(--ink-muted);
+}
+
+.comparison-target {
+	color: var(--ink-muted);
+	overflow-wrap: anywhere;
+}
+
+.comparison {
+	margin-top: 1rem;
+	padding-top: 0.75rem;
+	border-top: 1px dashed var(--rule);
+}
+
+.comparison-heading {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin-bottom: 0.5rem;
+	font-weight: 600;
+}
+
+/*
+	The two renders are the same size and sit one above the other, so anything that scaled one and
+	not the other would invent differences. Both are held to the same width.
+*/
+.comparison-image {
+	display: block;
+	width: 100%;
+	max-width: 720px;
+	height: auto;
+}
+
+.comparison-error {
+	margin: 0;
+	color: var(--bs-danger, #b71c1c);
+	font-size: 0.85rem;
+	overflow-wrap: anywhere;
+}
+
+.comparison-note {
+	color: var(--ink-muted);
+	font-weight: 400;
+	font-size: 0.85rem;
+}
